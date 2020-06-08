@@ -107,20 +107,9 @@ int execSystem(char *comando)
  */
 int task(int cmdN, char **cmdL, int RuntimeMax, int IdleTimeMax)
 {
-    int i;
-
-    if ((i = fork()) != 0)
-    {
-        if (i < 0)
-            return -1;
-        int st;
-        wait(&st);
-        return st;
-    }
-
     signal(SIGALRM, killTask);
     signal(SIGINT, killTask);
-    int st, pp[2], stdout = dup(1);
+    int i, st, pp[2], stdout = dup(1);
 
     for (i = 0; i < cmdN - 1; i++)
     {
