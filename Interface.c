@@ -64,6 +64,10 @@ int history(ArgusStatus sys)
 {
 }
 
-int lookup(ArgusStatus sys, int task)
+int output(ArgusStatus sys, int task)
 {
+}
+
+char * help(ArgusStatus sys){
+
 }

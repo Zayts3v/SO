@@ -3,6 +3,8 @@
 
 typedef struct _argST *ArgusStatus;
 
+ArgusStatus initArgusStatus();
+
 int setMaximumRunTime(ArgusStatus sys, int RunTime);
 
 int setMaximumIdleTime(ArgusStatus sys, int IdleTime);
@@ -15,5 +17,7 @@ int terminate(ArgusStatus sys,int task);
 
 int history(ArgusStatus sys);
 
-int lookup(ArgusStatus sys,int task);
+int output(ArgusStatus sys,int task);
+
+char * help(ArgusStatus sys);
 #endif 
