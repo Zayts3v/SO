@@ -1,13 +1,19 @@
-int setMaximumRunTime(int RunTime);
+#ifndef Interface_h
+#define Interface_h
 
-int setMaximumIdleTime(int IdleTime);
+typedef struct _argST *ArgusStatus;
 
-int execute(char *command);
+int setMaximumRunTime(ArgusStatus sys, int RunTime);
 
-int listTasks();
+int setMaximumIdleTime(ArgusStatus sys, int IdleTime);
 
-int terminate();
+int execute(ArgusStatus sys,char *command);
 
-int history();
+int listTasks(ArgusStatus sys);
 
-int lookup(int task);
+int terminate(ArgusStatus sys,int task);
+
+int history(ArgusStatus sys);
+
+int lookup(ArgusStatus sys,int task);
+#endif 

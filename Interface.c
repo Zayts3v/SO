@@ -1,48 +1,69 @@
 #include "Interface.h"
+#include "taskexec.h"
+#include "unistd.h"
+#include <stdlib.h>
+#include <string.h>
 
-//EITHER (this) (STRUCT)
-int RunTimeMax = -1;
-int IdleTimeMax = -1;
+struct _argST
+{
+    int RunTimeMax, IdleTimeMax;
+    int logs,logsIDX;
+};
 
-//-->Estrutura com as Tarefas e detalhes das mesmas (probably listas com varios parametros)
+ArgusStatus initArgusStatus(){
+    ArgusStatus res = calloc(1,sizeof(struct _argST));
+    res->RunTimeMax = -1;
+    res->IdleTimeMax = -1;
+    //res -> logs =  
+    //
+}
 
-int setMaximumRunTime(int RunTime)
+
+int setMaximumRunTime(ArgusStatus sys, int RunTime)
 {
     if (RunTime < 1)
         return -1;
-    RunTime = RunTime;
+    sys->RunTimeMax = RunTime;
     return 0;
 }
 
-int setMaximumIdleTime(int IdleTime)
+int setMaximumIdleTime(ArgusStatus sys, int IdleTime)
 {
-    if (IdleTimeMax < 1)
+    if (IdleTime < 1)
         return -1;
-    IdleTimeMax = IdleTimeMax;
+    sys->IdleTimeMax = IdleTime;
     return 0;
 }
 
-int execute(char *command)
+int execute(ArgusStatus sys, char *command)
 {
-    //TODO implementar ou migrar taskexec.c
+    int ncomands = 1;
+    for (int i = 0; command[i]; i++) /* condition */
+        if (command[i] == '|')
+            ncomands++;
+
+    char *comands[ncomands], *t0 = strtok(command, "|");
+    for (int i = 0; t0; i++, t0 = strtok(NULL, "|"))
+    {
+        comands[i] = t0;
+    }
+
+    if (fork()==0) {task(ncomands, comands, sys->RunTimeMax, sys->IdleTimeMax);}
+    return 0;
 }
 
-int listTasks()
+int listTasks(ArgusStatus sys)
 {
-    //TODO
 }
 
-int terminate()
+int terminate(ArgusStatus sys, int task)
 {
-    //TODO
 }
 
-int history()
+int history(ArgusStatus sys)
 {
-    //TODO
 }
 
-int lookup(int task)
+int lookup(ArgusStatus sys, int task)
 {
-    //TODO
 }
