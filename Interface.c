@@ -4,8 +4,17 @@
 #include <stdlib.h>
 #include <string.h>
 
+typedef enum TaskStatus {Running,InFile,Killed};
+
+typedef struct _tasklist{
+    int id,index,st;
+    char * command;
+    struct _tasklist *next;
+} *TaskList;
+
+
 struct _argST
-{
+{   int taskcount;
     int RunTimeMax, IdleTimeMax;
     int logs,logsIDX;
 };
@@ -38,7 +47,7 @@ int setMaximumIdleTime(ArgusStatus sys, int IdleTime)
 int execute(ArgusStatus sys, char *command)
 {
     int ncomands = 1;
-    for (int i = 0; command[i]; i++) /* condition */
+    for (int i = 0; command[i]; i++)
         if (command[i] == '|')
             ncomands++;
 
