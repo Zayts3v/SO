@@ -1,16 +1,32 @@
 #include "Interface.h"
 #include "taskexec.h"
+#include "list.h"
 #include "unistd.h"
 #include <stdlib.h>
 #include <string.h>
 
-typedef enum TaskStatus {Running,InFile,Killed};
-
-typedef struct _tasklist{
-    int id,index,st;
+typedef struct _taskinfo{
     char * command;
-    struct _tasklist *next;
-} *TaskList;
+    int id,index,status;
+} * TaskInfo;
+
+typedef enum TaskStatus {Done,Running};
+
+TaskInfo mkTaskInfo(char *comand, int pid, int index, int status)
+{
+    TaskInfo res = calloc(1, sizeof(struct _taskinfo));
+    res->command = comand;
+    res->id = pid;
+    res->index = index;
+    res->status = status;
+    return res;
+}
+
+void TaskInfo_free(TaskInfo info)
+{
+    if (info)
+        free(info);
+}
 
 
 struct _argST
