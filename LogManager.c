@@ -1,7 +1,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-const int magicnumberANDnullsize[2] = {0x00000C02,0};
+const int magicnumberANDnullsize[2] = {0x00000C01,0};
 
 int openIDX_1DimInt(char * filename, int * Number_Of_Entrys){
     int res;

@@ -30,14 +30,14 @@ void List_free(List l, void (*datafreefunc)(void *data))
     {
         List t0 = l->next;
         if (l->data)
-            datafreefunc(l->data);
+            (*datafreefunc)(l->data);
         free(t0);
     }
 }
 
 void ** List_lookupPointer(List l, int (*keyfinder)(void * data)){
     for(;l;l=l->next){
-        if (l -> data && keyfinder(l->data)){
+        if (l -> data && (*keyfinder)(l->data)){
             return &(l->data);
         }
     }

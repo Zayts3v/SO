@@ -5,145 +5,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include "Interface.h"
-
-const unsigned int MaxLineSize = 1024;
-const unsigned int ReadBufferSize = 4096;
-const char InputFIFOName[12] = "ArgusInput";
-const char OutputFIFOName[12] = "ArgusOutput";
-const char argusTag[8] = "argus$ ";
-
-/**
- * @brief Le no maximo nbytes de um dado ficheiro imprime a primeira linha do mesmo num dado buffer
- * 
- * @param fd File descriptor a ser lido
- * @param buffer Buffer a ser escrito
- * @param nbytes Nº de bytes limite que se podem ler
- * @return int Nº de bytes lidos
- */
-int readln(int fd, char *buffer, size_t nbytes)
-{
-    int res = read(fd, buffer, nbytes);
-    if (res == 0)
-        return -1;
-    for (int i = 0; i < res; i++)
-        if (buffer[i] == '\n')
-        {
-            buffer[i] = '\0';
-            break;
-        }
-    return res;
-}
-/**
- * @brief Intrepeta comandos do STDIN e escreve os resultados dos mesmos no STDOUT
- * 
- * @param displayname Indica se pretende-se mostrar a identificação do progama em cada comando
- * @return int 0 se acabou com sucesso, qualquer outro numero se ocorreu um erro
- */
-int terminal(int displayname)
-{
-    ArgusStatus sys = initArgusStatus();
-
-    char buffer[ReadBufferSize];
-    int rsize = -1;
-
-    if (displayname)
-        write(1, argusTag, strlen(argusTag));
-
-    while ((rsize = readln(0, buffer, ReadBufferSize)) >= 0)
-    {
-        char *comand = strtok(buffer, " ");
-
-        //O objetivo deste switch é tornar o codigo mais rapido
-        if (comand != NULL)
-        {
-            switch (comand[0]) //TODO IMPRIMIR NO STDOUT
-            {
-            case 't':
-                if (strcmp(comand, "tempo-execucao") == 0)
-                {
-                    setMaximumRunTime(sys, atoi(buffer+strlen(comand)));
-                }
-                if (strcmp(comand, "tempo-inatividade") == 0)
-                {
-                    setMaximumRunTime(sys, atoi(buffer+strlen(comand)));
-                }
-                if (strcmp(comand, "terminar"))
-                {
-                    terminate(sys, atoi(buffer+strlen(comand)));
-                }
-                break;
-            case 'e':
-                if (strcmp(comand, "executar") == 0)
-                    execute(sys, buffer+strlen(comand));
-                break;
-            case 'l':
-                if (strcmp(comand, "listar") == 0)
-                    listTasks(sys);
-                break;
-            case 'h':
-                if (strcmp(comand, "historico") == 0)
-                    history(sys);
-                break;
-            case 'a':
-                if (strcmp(comand, "ajuda") == 0)
-                    help(sys);
-                break;
-            case 'o':
-                if (strcmp(comand, "output") == 0)
-                    output(sys, atoi(buffer+strlen(comand)));
-                break;
-            case 'q':
-                if (strcmp(comand, "quit") == 0)
-                    return 0;
-            default:
-                write(1,"Comando Invalido\n",18);
-            break;
-            }
-        }
-        if (displayname)
-            write(1, argusTag, strlen(argusTag));
-    }
-
-    return rsize;
-}
-
-int server_stop()
-{
-    int fd = open(InputFIFOName, O_WRONLY, 0666);
-    if(fd>0){
-    write(fd, "quit\n", 6);
-    close(fd);
-    }
-    return 0;
-}
-
-/**
- * @brief Inicia o progama argus num servidor em background
- * 
- * @return int Identidicação do proceso do servidor,se for um numero negativo indica que ocorreu um erro
- */
-int server()
-{
-    int st = 0;
-    if ((st = fork()) != 0)
-        return st;
-
-    mkfifo(InputFIFOName, 0666);
-    st = open(InputFIFOName, O_RDONLY, 0666);
-    dup2(st, 0);
-    close(st);
-
-    mkfifo(OutputFIFOName, 0666);
-    st = open(OutputFIFOName, O_WRONLY, 0666);
-    dup2(st, 1);
-    close(st);
-
-    st = terminal(0);
-
-    unlink(InputFIFOName);
-    unlink(OutputFIFOName);
-    return st;
-}
+#include "constants.h"
 
 /**
  * @brief Lê, processa e comunica ao servidor um comando, proveniente de uma shell, a ser executado
@@ -194,17 +56,17 @@ int shell(int argc, char **argv)
         break;
     }
 
-    char res[MaxLineSize];
-    res[0] = '\0';
-    int in,out, i, cursor;
+    int serverin,serverout, cursor;
 
-    if ((out = open(InputFIFOName, O_WRONLY, 0666)) < 0)
+    if ((serverin = open(InputFIFOName, O_WRONLY, 0666)) < 0 || (serverout = open(OutputFIFOName,O_RDONLY,0666)<0))
     {
         write(2, "Error: Server Offline\n", 23);
         return -1;
     }
     //Concatenar argumentos
-    for (i = 0, cursor = 0; i < argc && cursor > MaxLineSize; i++)
+    char res[MaxLineSize];
+    res[0] = '\0';
+    for (int i = 0, cursor = 0; i < argc && cursor > MaxLineSize; i++)
     {
         strncat(res, argv[i], MaxLineSize - cursor);
         cursor += strlen(argv[i]);
@@ -215,11 +77,15 @@ int shell(int argc, char **argv)
 
     //Enviar operação para o servidor
 
-    write(out, res, strlen(res));
-    close(out);
+    write(serverin, res, strlen(res));
+    close(serverin);
 
     //Ler operação do servidor
-
+    char buffer[ReadBufferSize];
+    while ((cursor = read(serverout,buffer,ReadBufferSize))>0){
+        write(1,buffer,cursor);
+    }
+    close(serverout);
 
     return 0;
 }
@@ -229,15 +95,6 @@ int shell(int argc, char **argv)
  */
 int main(int argc, char *argv[])
 {
-    if (argc == 1)
-        return terminal(1);
-    if (strcmp("server", argv[1]) == 0)
-    {
-        if (argc > 2)
-            if (strcmp(argv[2], "stop") == 0)
-                return server_stop();
-        return server();
-    }
-
+    if (argc == 1) return argus(1);
     return shell(argc - 1, argv + 1);
 }
