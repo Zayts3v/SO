@@ -6,7 +6,6 @@
 #include "list.h"
 #include "unistd.h"
 
-
 typedef struct _taskinfo{
     char * command;
     int id,index,status;
@@ -107,7 +106,7 @@ char * help(ArgusStatus sys){
  * @param nbytes Nº de bytes limite que se podem ler
  * @return int Nº de bytes lidos
  */
-int readln(int fd, char *buffer, size_t nbytes)
+int readln(int fd, char *buffer, unsigned int nbytes)
 {
     int res = read(fd, buffer, nbytes);
     if (res == 0)
@@ -120,6 +119,7 @@ int readln(int fd, char *buffer, size_t nbytes)
         }
     return res;
 }
+
 
 /**
  * @brief Intrepeta comandos do STDIN e escreve os resultados dos mesmos no STDOUT

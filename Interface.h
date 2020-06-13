@@ -19,5 +19,9 @@ int history(ArgusStatus sys);
 
 int output(ArgusStatus sys,int task);
 
+int readln(int fd, char *buffer, unsigned int nbytes);
+
+int argus(int displayname);
+
 char * help(ArgusStatus sys);
 #endif 

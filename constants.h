@@ -1,10 +1,10 @@
 #ifndef constants_h
 #define constants_h
 
-const unsigned int MaxLineSize = 1024;
-const unsigned int ReadBufferSize = 4096;
-const char * InputFIFOName = "ArgusInput";
-const char * OutputFIFOName = "ArgusOutput";
-const char * argusTag = "argus$ ";
+extern const unsigned int MaxLineSize;
+extern const unsigned int ReadBufferSize;
+extern const char * InputFIFOName;
+extern const char * OutputFIFOName;
+extern const char * argusTag;
 
 #endif

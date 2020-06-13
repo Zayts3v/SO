@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <sys/wait.h>
+#include "constants.h"
 
 int *pids = NULL, ind = 0, arrsize = 1;
 
@@ -57,11 +58,10 @@ void IterruptFather(int signum)
  */
 void idlelimit(unsigned int limit)
 {
-    const size_t BufferSize = 4096;
-    char buffer[BufferSize];
+    char buffer[ReadBufferSize];
     int i = 0;
     alarm(limit);
-    while ((i = read(0, buffer, BufferSize)) > 0)
+    while ((i = read(0, buffer, ReadBufferSize)) > 0)
     {
         write(1, buffer, i);
         alarm(limit);
