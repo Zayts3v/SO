@@ -1,101 +1,183 @@
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+#include <signal.h>
 #include "constants.h"
 #include "Interface.h"
 #include "taskexec.h"
 #include "list.h"
 #include "unistd.h"
 
-typedef struct _taskinfo{
-    char * command;
-    int id,index,status;
+typedef struct _taskinfo
+{
+    char *command, *outputfilename;
+    int pid, index, output;
 } * TaskInfo;
 
-typedef enum TaskStatus {Done,Running};
-
-TaskInfo mkTaskInfo(char *comand, int pid, int index, int status)
+TaskInfo mkTaskInfo(char *comand, int pid, int index)
 {
     TaskInfo res = calloc(1, sizeof(struct _taskinfo));
     res->command = comand;
-    res->id = pid;
+    res->pid = pid;
     res->index = index;
-    res->status = status;
+
+    char outname[20];
+    snprintf(outname, 20, "task%d.out", index);
+    res->outputfilename = strdup(outname);
+    res->output = open(res->outputfilename, O_CREAT | O_TRUNC | O_RDWR);
+    if (res->output < 0)
+        res->output = 1;
+
     return res;
 }
 
 void TaskInfo_free(TaskInfo info)
 {
     if (info)
+    {
+        if (info->outputfilename)
+        {
+            unlink(info->outputfilename);
+            free(info->outputfilename);
+        }
         free(info);
+    }
 }
 
-
-struct _argST
-{   int taskcount;
+typedef struct _argST
+{
+    List tasklist;
+    int taskcount;
     int RunTimeMax, IdleTimeMax;
-    int logs,logsIDX;
-};
+    int logs, logsIDX;
+} * ArgusStatus;
 
-ArgusStatus initArgusStatus(){
-    ArgusStatus res = calloc(1,sizeof(struct _argST));
+ArgusStatus initArgusStatus()
+{
+    ArgusStatus res = calloc(1, sizeof(struct _argST));
+    res->tasklist = NULL;
+    res->taskcount = 0;
     res->RunTimeMax = -1;
     res->IdleTimeMax = -1;
-    //res -> logs =  
-    //
+    //res -> logs = API NEEDED
+    //res -> logsIDX = API NEEDED
 }
 
+ArgusStatus msystem = NULL;
 
-int setMaximumRunTime(ArgusStatus sys, int RunTime)
+void taskMaid(int signum)
+{
+    for (List *l = &(msystem->tasklist); *l;)
+    {
+        TaskInfo task = (*l)->data;
+        int status;
+        if (task->pid && waitpid(task->pid, &status, WNOHANG) == task->pid)
+        {
+            //MOVE OUTPUT TO LOG -->API NEEDED
+            //UPDATE IDX WITH LOG POSITION --> API NEEDED
+            *l = (*l)->next;
+            TaskInfo_free(task);
+        }
+        else
+            l = &(*l)->next;
+    }
+}
+
+int setMaximumRunTime(int RunTime)
 {
     if (RunTime < 1)
         return -1;
-    sys->RunTimeMax = RunTime;
+    msystem->RunTimeMax = RunTime;
     return 0;
 }
 
-int setMaximumIdleTime(ArgusStatus sys, int IdleTime)
+int setMaximumIdleTime(int IdleTime)
 {
     if (IdleTime < 1)
         return -1;
-    sys->IdleTimeMax = IdleTime;
+    msystem->IdleTimeMax = IdleTime;
     return 0;
 }
 
-int execute(ArgusStatus sys, char *command)
+int execute(char *command)
 {
-    int ncomands = 1;
-    for (int i = 0; command[i]; i++)
-        if (command[i] == '|')
-            ncomands++;
+    TaskInfo res = mkTaskInfo(command, -1, msystem->taskcount + 1);
+    int pid;
 
-    char *comands[ncomands], *t0 = strtok(command, "|");
-    for (int i = 0; t0; i++, t0 = strtok(NULL, "|"))
+    if ((pid = fork()) == 0)
     {
-        comands[i] = t0;
+        //REGISTER TASK ENTRY IN IDX -> API NEEDDED
+        dup2(res->output, 1);
+        pid = task(res->command, msystem->RunTimeMax, msystem->IdleTimeMax);
+        _exit(pid);
+    }
+    else
+    {
+        char *bruh_moment = "Erro a iniciar a tarefa";
+        write(1, bruh_moment, sizeof(bruh_moment));
+        return -1;
     }
 
-    if (fork()==0) {task(ncomands, comands, sys->RunTimeMax, sys->IdleTimeMax);}
+    res->pid = pid;
+    msystem->taskcount++;
+    msystem->tasklist = List_prepend(msystem->tasklist, res);
+    char outputstring[32];
+    snprintf(outputstring, 32, "Nova tarefa #%d \n");
+
     return 0;
 }
 
-int listTasks(ArgusStatus sys)
+int listTasks() //MIGHT BE AFFECT WITH HISTORICO PROBLEM ,_,
 {
+    char stringbuff[256];
+    for (List l = msystem->taskcount; l; l = l->next)
+    {
+        TaskInfo info = l->data;
+        snprintf(stringbuff, 256, "#%d: %s\n", info->index, info->command);
+        write(1, stringbuff, strlen(stringbuff));
+    }
 }
 
-int terminate(ArgusStatus sys, int task)
+int terminate(int task)
 {
+    for (List l = msystem->taskcount; l; l = l->next)
+    {
+        TaskInfo info = l->data;
+        if (info->index <= task)
+        {
+            if (info->index == task)
+                kill(SIGINT, info->pid);
+            break;
+        }
+    }
 }
 
-int history(ArgusStatus sys)
+int history()
 {
+    char boolarray[msystem->taskcount];
+    for (int i = 0; i < msystem->taskcount; i++)
+        boolarray[i] = 0;
+
+    for (List l = msystem->tasklist; l ; l=l->next)
+        boolarray[ ((TaskInfo) l)->index] = 1;
+
+    for (int i = 0; i < msystem->taskcount; i++)
+        if(boolarray[i]){
+            //UNEXPECTED PROBLEMS IN HERE - NOT STORING ALL INFO REQUIRED TO CHECK LATER
+        }
 }
 
-int output(ArgusStatus sys, int task)
+int output(int task)
 {
+    //get idx line
+    //if (output (1,idxpos)<0) write(1,"\n",1);
 }
 
-char * help(ArgusStatus sys){
-
+char *help()
+{
+    return "bruh_1\nbruh2\nbruh3\nbruh4\n";
 }
 
 /**
@@ -120,7 +202,6 @@ int readln(int fd, char *buffer, unsigned int nbytes)
     return res;
 }
 
-
 /**
  * @brief Intrepeta comandos do STDIN e escreve os resultados dos mesmos no STDOUT
  * 
@@ -129,7 +210,8 @@ int readln(int fd, char *buffer, unsigned int nbytes)
  */
 int argus(int displayname)
 {
-    ArgusStatus sys = initArgusStatus();
+    signal(SIGCHLD, taskMaid);
+    msystem = initArgusStatus();
 
     char buffer[ReadBufferSize];
     int rsize = -1;
@@ -149,43 +231,43 @@ int argus(int displayname)
             case 't':
                 if (strcmp(comand, "tempo-execucao") == 0)
                 {
-                    setMaximumRunTime(sys, atoi(buffer+strlen(comand)));
+                    setMaximumRunTime(atoi(buffer + strlen(comand)));
                 }
                 if (strcmp(comand, "tempo-inatividade") == 0)
                 {
-                    setMaximumRunTime(sys, atoi(buffer+strlen(comand)));
+                    setMaximumRunTime(atoi(buffer + strlen(comand)));
                 }
                 if (strcmp(comand, "terminar"))
                 {
-                    terminate(sys, atoi(buffer+strlen(comand)));
+                    terminate(atoi(buffer + strlen(comand)));
                 }
                 break;
             case 'e':
                 if (strcmp(comand, "executar") == 0)
-                    execute(sys, buffer+strlen(comand));
+                    execute(buffer + strlen(comand));
                 break;
             case 'l':
                 if (strcmp(comand, "listar") == 0)
-                    listTasks(sys);
+                    listTasks();
                 break;
             case 'h':
                 if (strcmp(comand, "historico") == 0)
-                    history(sys);
+                    history();
                 break;
             case 'a':
                 if (strcmp(comand, "ajuda") == 0)
-                    help(sys);
+                    help();
                 break;
             case 'o':
                 if (strcmp(comand, "output") == 0)
-                    output(sys, atoi(buffer+strlen(comand)));
+                    output(atoi(buffer + strlen(comand)));
                 break;
             case 'q':
                 if (strcmp(comand, "quit") == 0)
                     return 0;
             default:
-                write(1,"Comando Invalido\n",18);
-            break;
+                write(1, "Comando Invalido\n", 18);
+                break;
             }
         }
         if (displayname)
