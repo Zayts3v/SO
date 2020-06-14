@@ -77,10 +77,11 @@ void updateIDX(int idxfile, int index, int valor)
 
     lseek(idxfile, 4, SEEK_SET);
     read(idxfile, &i, sizeof(int));
-    if (index < 0 || index > i)
-        index = i;
-    lseek(idxfile, 4, SEEK_SET);
-    write(idxfile, &i, sizeof(int));
+    if (index < 0 || index > i){
+        index = i++;
+        lseek(idxfile, 4, SEEK_SET);
+        write(idxfile, &i, sizeof(int));
+    }    
 
     lseek(idxfile, index * sizeof(int), SEEK_CUR);
     write(idxfile, &valor, sizeof(valor));
