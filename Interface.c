@@ -154,19 +154,22 @@ int listTasks()
 
 int terminate(int task)
 {
-    fprintf(stderr, "%x ", msystem->tasklist);
-    for (List l = msystem->tasklist; l; l = l->next)
+    List l = msystem->tasklist;
+    while (l)
     {
+        perror("IFWOEFE");
         TaskInfo info = l->data;
-        fprintf(stderr, "%d", info->index < task);
-        if (info->index == task)
-        {
-            fprintf(stderr, "%d",
-                    kill(SIGTERM, info->pid));
-            break;
+        if(info->index < task)break;
+        if(info->index == task){
+            kill(SIGTERM,info->pid);
+            return 0;      
         }
+    l = l->next;
     }
-    return 0;
+    
+    char * out = "Tarefa Inexistente";
+    write (1,out,strlen(out));
+    return -1;
 }
 
 int history()

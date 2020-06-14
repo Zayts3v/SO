@@ -9,7 +9,6 @@
 
 List pids = NULL;
 
-#include <stdio.h>
 
 /**
  * @brief Dado um Sinal termina a tarefa a ser executada
