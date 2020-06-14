@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 #include <sys/wait.h>
+#include <sys/types.h>
 #include <fcntl.h>
 #include <signal.h>
 #include "constants.h"
@@ -10,6 +10,7 @@
 #include "list.h"
 #include "LogManager.h"
 #include "unistd.h"
+#include <stdio.h>
 
 typedef struct _taskinfo
 {
@@ -114,14 +115,15 @@ int setMaximumIdleTime(int IdleTime)
 int execute(char *command)
 {
     TaskInfo res = mkTaskInfo(command, -1, msystem->taskcount + 1, msystem->RunTimeMax, msystem->RunTimeMax);
-    int pid;
+    pid_t pid;
 
     if ((pid = fork()) == 0)
     {
-        updateIDX(msystem->logsIDX, -1, 0);
+        updateIDX(msystem->logsIDX, res->index, 0);
+        pid = getpid();
+        setpgid(pid, pid);
         dup2(res->output, 1);
-        pid = task(res->command, res->RTM, res->ITM);
-        _exit(pid);
+        _exit(task(res->command, res->RTM, res->ITM));
     }
     if (pid < 0)
     {
@@ -157,18 +159,19 @@ int terminate(int task)
     List l = msystem->tasklist;
     while (l)
     {
-        perror("IFWOEFE");
         TaskInfo info = l->data;
-        if(info->index < task)break;
-        if(info->index == task){
-            kill(SIGTERM,info->pid);
-            return 0;      
+        if (info->index < task)
+            break;
+        if (info->index == task)
+        {
+            kill(-getpgid(info->pid), SIGKILL);
+            return 0;
         }
-    l = l->next;
+        l = l->next;
     }
-    
-    char * out = "Tarefa Inexistente";
-    write (1,out,strlen(out));
+
+    char *out = "Tarefa Inexistente\n";
+    write(1, out, strlen(out));
     return -1;
 }
 
@@ -243,6 +246,11 @@ int argusRTE(int displayname)
             switch (comand[0]) //TODO IMPRIMIR NO STDOUT
             {
             case 't':
+                if (strcmp(comand, "terminar") == 0 && objects)
+                {
+                    terminate(atoi(objects));
+                    break;
+                }
                 if (strcmp(comand, "tempo-execucao") == 0 && objects)
                 {
                     setMaximumRunTime(atoi(objects));
@@ -251,11 +259,6 @@ int argusRTE(int displayname)
                 if (strcmp(comand, "tempo-inatividade") == 0 && objects)
                 {
                     setMaximumRunTime(atoi(objects));
-                    break;
-                }
-                if (strcmp(comand, "terminar") && objects)
-                {
-                    terminate(atoi(objects));
                     break;
                 }
                 break;

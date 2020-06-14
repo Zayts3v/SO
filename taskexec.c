@@ -7,50 +7,15 @@
 #include "constants.h"
 #include "list.h"
 
-List pids = NULL;
-
-
 /**
- * @brief Dado um Sinal termina a tarefa a ser executada
- * 
- * @param signum Sinal a ser processado
- */
-void killTask(int signum)
-{
-    for (List l; l; l = l->next)
-        kill(SIGKILL, *((int *)l->data));
-    switch (signum)
-    {
-    case 0:
-        return;
-    case SIGTERM:
-        _exit(1);
-    case SIGALRM:
-        _exit(2);
-    }
-}
-
-/**
- * @brief Envia um sinal de interrupção ao processo pai
+ * @brief Envia um sinal ao grupo do processo
  * 
  * @param signum Sinal original
  */
-void TerminateFather(int signum)
+void KillGroup(int signum)
 {
-    kill(getppid(), SIGTERM);
+    kill(-getpgid(0), SIGKILL);
     _exit(1);
-}
-
-/**
- * @brief Adiciona um ProcessID ao registo dos mesmos
- * 
- * @param pid ProcessID a ser registado
- */
-void addPID(int pid)
-{
-    int *t = calloc(1, sizeof(int));
-    *t = pid;
-    pids = List_prepend(pids, t);
 }
 
 /**
@@ -103,8 +68,7 @@ int task(char *comand, int RunTimeMax, int IdleTimeMax)
     if (comand == NULL)
         return -1;
 
-    signal(SIGALRM, killTask);
-    signal(SIGTERM, killTask);
+    signal(SIGALRM,KillGroup);
 
     List comandList = NULL;
     char *p = strtok(comand, "|");
@@ -135,7 +99,6 @@ int task(char *comand, int RunTimeMax, int IdleTimeMax)
                     execSystem((char *)t0->data);
                 else //se nao estivermos na primeira iteração do ciclo em vez de se executar um comando o processo fica a medir
                 {    //a variaçao do fluxo do pipe, se esta variaçao nao satisfaz o tempo limite um SIGTERM é enviado ao seu pai
-                    signal(SIGALRM, TerminateFather);
                     idlelimit(IdleTimeMax);
                 }
 
@@ -158,16 +121,12 @@ int task(char *comand, int RunTimeMax, int IdleTimeMax)
     if (st < 0)
         _exit(-1); //Se houver um erro ao criar um filho a tarefa é cancelada
 
-
     if (RunTimeMax > 0)
         alarm(RunTimeMax);
 
     waitpid(st, &st, WUNTRACED);
 
     List_lfree(comandList);
-    List_free(pids,free);
-
-    killTask(0);
 
     return st;
 }
