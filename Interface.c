@@ -8,6 +8,7 @@
 #include "Interface.h"
 #include "taskexec.h"
 #include "list.h"
+#include "LogManager.h"
 #include "unistd.h"
 
 typedef struct _taskinfo
@@ -58,11 +59,11 @@ ArgusStatus initArgusStatus()
 {
     ArgusStatus res = calloc(1, sizeof(struct _argST));
     res->tasklist = NULL;
-    res->taskcount = 0;
     res->RunTimeMax = -1;
     res->IdleTimeMax = -1;
-    //res -> logs = API NEEDED
-    //res -> logsIDX = API NEEDED
+    res->logsIDX = openIDX(&(res->taskcount));
+    res->logs = openLogs();
+    return res;
 }
 
 ArgusStatus msystem = NULL;
@@ -75,8 +76,8 @@ void taskMaid(int signum)
         int status;
         if (task->pid && waitpid(task->pid, &status, WNOHANG) == task->pid)
         {
-            //MOVE OUTPUT TO LOG -->API NEEDED
-            //UPDATE IDX WITH LOG POSITION --> API NEEDED
+            int pos = updateLogs(msystem->logs, task->command, task->output);
+            updateIDX(msystem->logsIDX, task->index, pos);
             *l = (*l)->next;
             TaskInfo_free(task);
         }
@@ -108,7 +109,7 @@ int execute(char *command)
 
     if ((pid = fork()) == 0)
     {
-        //REGISTER TASK ENTRY IN IDX -> API NEEDDED
+        updateIDX(msystem->logsIDX, -1, 0);
         dup2(res->output, 1);
         pid = task(res->command, msystem->RunTimeMax, msystem->IdleTimeMax);
         _exit(pid);
@@ -124,25 +125,26 @@ int execute(char *command)
     msystem->taskcount++;
     msystem->tasklist = List_prepend(msystem->tasklist, res);
     char outputstring[32];
-    snprintf(outputstring, 32, "Nova tarefa #%d \n");
+    snprintf(outputstring, 32, "Nova tarefa #%d \n", res->index);
 
     return 0;
 }
 
-int listTasks() //MIGHT BE AFFECT WITH HISTORICO PROBLEM ,_,
+int listTasks()
 {
     char stringbuff[256];
-    for (List l = msystem->taskcount; l; l = l->next)
+    for (List l = msystem->tasklist; l; l = l->next)
     {
         TaskInfo info = l->data;
         snprintf(stringbuff, 256, "#%d: %s\n", info->index, info->command);
         write(1, stringbuff, strlen(stringbuff));
     }
+    return 0;
 }
 
 int terminate(int task)
 {
-    for (List l = msystem->taskcount; l; l = l->next)
+    for (List l = msystem->tasklist; l; l = l->next)
     {
         TaskInfo info = l->data;
         if (info->index <= task)
@@ -152,6 +154,7 @@ int terminate(int task)
             break;
         }
     }
+    return 0;
 }
 
 int history()
@@ -160,46 +163,31 @@ int history()
     for (int i = 0; i < msystem->taskcount; i++)
         boolarray[i] = 0;
 
-    for (List l = msystem->tasklist; l ; l=l->next)
-        boolarray[ ((TaskInfo) l)->index] = 1;
+    for (List l = msystem->tasklist; l; l = l->next)
+        boolarray[((TaskInfo)l)->index] = 1;
 
     for (int i = 0; i < msystem->taskcount; i++)
-        if(boolarray[i]){
-            //UNEXPECTED PROBLEMS IN HERE - NOT STORING ALL INFO REQUIRED TO CHECK LATER
+        if (boolarray[i])
+        {
+            char outputstring[288];
+            snprintf(outputstring, 32, "#i%d ", i);
+            getOutputInfo(msystem->logs, 1, readIndexIDX(msystem->logsIDX, i), outputstring, 286 - strlen(outputstring));
+            int t0 = strlen(outputstring);
+            outputstring[t0++] = '\n';
+            outputstring[t0] = '\0';
+            write(1, outputstring, t0);
         }
+    return 0;
 }
 
 int output(int task)
 {
-    //get idx line
-    //if (output (1,idxpos)<0) write(1,"\n",1);
+    return !(writeOutputTo(msystem->logs, 1, readIndexIDX(msystem->logsIDX, task)) > 0);
 }
 
 char *help()
 {
     return "bruh_1\nbruh2\nbruh3\nbruh4\n";
-}
-
-/**
- * @brief Le no maximo nbytes de um dado ficheiro imprime a primeira linha do mesmo num dado buffer
- * 
- * @param fd File descriptor a ser lido
- * @param buffer Buffer a ser escrito
- * @param nbytes Nº de bytes limite que se podem ler
- * @return int Nº de bytes lidos
- */
-int readln(int fd, char *buffer, unsigned int nbytes)
-{
-    int res = read(fd, buffer, nbytes);
-    if (res == 0)
-        return -1;
-    for (int i = 0; i < res; i++)
-        if (buffer[i] == '\n')
-        {
-            buffer[i] = '\0';
-            break;
-        }
-    return res;
 }
 
 /**

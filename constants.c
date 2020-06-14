@@ -5,3 +5,5 @@ const unsigned int ReadBufferSize = 4096;
 const char * InputFIFOName = "ArgusInput";
 const char * OutputFIFOName = "ArgusOutput";
 const char * argusTag = "argus$ ";
+const char * idxname = "log.idx";
+const char * logfilename = "log";

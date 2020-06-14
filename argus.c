@@ -56,7 +56,7 @@ int shell(int argc, char **argv)
         break;
     }
 
-    int serverin,serverout, cursor;
+    int serverin,serverout, cursor=0;
 
     if ((serverin = open(InputFIFOName, O_WRONLY, 0666)) < 0 || (serverout = open(OutputFIFOName,O_RDONLY,0666)<0))
     {

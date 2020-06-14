@@ -12,7 +12,7 @@ argus: argus.c Interface.o constants.o
 argusd: argusd.c Interface.o constants.o
 	$(CC) $(GFLAGS) argusd.c *.o -o argusd
 
-Interface.o: Interface.c Interface.h taskexec.o list.o constants.o
+Interface.o: Interface.c Interface.h taskexec.o list.o LogManager.o constants.o
 	$(CC) $(OFLAGS) Interface.c Interface.h 
 
 taskexec.o: taskexec.c taskexec.h constants.o
@@ -21,8 +21,11 @@ taskexec.o: taskexec.c taskexec.h constants.o
 list.o : list.h list.c
 	$(CC) $(OFLAGS) list.c list.h
 	
+LogManager.o: LogManager.c LogManager.h constants.o
+	$(CC) $(OFLAGS) LogManager.c LogManager.h
+
 constants.o : constants.c constants.h
 	$(CC) $(OFLAGS) constants.c constants.h
 
 clean:
-	rm *.o argus argusd *.gch ArgusInput ArgusOutput logs logs.idx
+	rm *.o argus argusd *.gch ArgusInput ArgusOutput logs logs.idx *.out
