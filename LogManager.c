@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <string.h>
+#include <time.h>
 #include "constants.h"
 
 /**
@@ -132,24 +133,36 @@ int openLogs()
  * 
  * @param logfile descritor do ficheiro de logs a ser atualizado
  * @param comando comando que provocou este output;
+ * @param inatividade int valor tempo inatividade
+ * @param execucao int valor tempo execucao
  * @param filetocopy descritor do output
  * @return int 
  */
-int updateLogs(int logfile, char *comando, int descriptortocopy)
+int updateLogs(int logfile, char* comando, int inatividade, int execucao, int filetocopy)
 {
 
-    lseek(descriptortocopy, 0, SEEK_SET); //NOTA: Se descriptortocopy for um pipe isto da erro e nao faz nada
+    lseek(filetocopy, 0, SEEK_SET); //NOTA: Se descriptortocopy for um pipe isto da erro e nao faz nada
 
     int pos = lseek(logfile, 0, SEEK_END); //escreve no fim
     if (pos < 0)
         return -1;
 
-    write(logfile, comando, strlen(comando)); //write comando
+    //write int int comando
+    write(logfile, inatividade, sizeof(int));
+    write(logfile, execucao, sizeof(int));
+    write(logfile, comando, strlen(comando));
+    write(logfile, "\n", 1);
+
+    //write time + output
+
+    const time_t timer = time(NULL);
+    char * time = ctime(timer);
+    write(logfile,time,strlen(time));
     write(logfile, "\n", 1);
 
     ssize_t n;
     char buffer[ReadBufferSize];
-    while ((n = read(descriptortocopy, buffer, ReadBufferSize)) > 0)
+    while ((n = read(filetocopy, buffer, ReadBufferSize)) > 0)
         write(logfile, buffer, n);
 
     write(logfile, "\0", 1);
@@ -167,7 +180,6 @@ int updateLogs(int logfile, char *comando, int descriptortocopy)
  */
 int writeOutputTo(int logfile, int destination_file, off_t file_index)
 {
-
     if (lseek(logfile, file_index, SEEK_SET) < 0)
         return -1;
 
@@ -177,7 +189,7 @@ int writeOutputTo(int logfile, int destination_file, off_t file_index)
     while ((n = read(logfile, buffer, ReadBufferSize - 1)) > 0)
     {
         int t0 = strlen(buffer);
-        write(logfile, buffer, t0);
+        write(destination_file, buffer, t0);
         if (t0 < n)
             break;
     }
@@ -189,18 +201,28 @@ int writeOutputTo(int logfile, int destination_file, off_t file_index)
  * @brief Devolve a informaçao do output de uma tarefa a partir do ficheiro logs
  * 
  * @param logfile descritor do ficheiro de logs a ser lido
- * @param destination_file descritor onde sera escrito o output
  * @param file_index posiçao do output no ficheiro
  * @param output_comand array onde escrever o comando
  * @param output_comand_size tamanho do array que foi fornecido
+ * @param inatividade int valor tempo inatividade
+ * @param execucao int valor tempo execucao
  * @return int 0 se correu tudo bem
  */
-int getOutputInfo(int logfile, int destination_file, off_t file_index, char output_comand[], int output_comand_size)
+
+//originally getOutputInfo
+int getCommandInfo(int logfile, off_t file_index, char output_comand[], int output_comand_size, int inatividade, int execucao)
 {
-    char buffer[MaxLineSize];
     if (lseek(logfile, file_index, SEEK_SET) < 0)
         return -1;
 
+    int i;
+    read(logfile, &i, sizeof(int));
+    inatividade = i;
+
+    read(logfile, &i, sizeof(int));
+    execucao = i;
+
+    char buffer[MaxLineSize];
     readln(logfile, buffer, MaxLineSize);
 
     int i;
@@ -213,3 +235,4 @@ int getOutputInfo(int logfile, int destination_file, off_t file_index, char outp
 
     return 0;
 }
+

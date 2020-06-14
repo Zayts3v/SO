@@ -51,10 +51,12 @@ int openLogs();
  * 
  * @param logfile descritor do ficheiro de logs a ser atualizado
  * @param comando comando que provocou este output;
+ * @param inatividade int valor tempo inatividade
+ * @param execucao int valor tempo execucao
  * @param filetocopy descritor do output
  * @return int 
  */
-int updateLogs(int logfile, char *comando, int descriptortocopy);
+int updateLogs(int logfile, char* comando, int inatividade, int execucao, int filetocopy);
 
 /**
  * @brief Escreve o registo a partir de uma dada posiçao do ficheiro de logs
@@ -70,12 +72,13 @@ int writeOutputTo(int logfile, int destination_file, off_t file_index);
  * @brief Devolve a informaçao do output de uma tarefa a partir do ficheiro logs
  * 
  * @param logfile descritor do ficheiro de logs a ser lido
- * @param destination_file descritor onde sera escrito o output
  * @param file_index posiçao do output no ficheiro
  * @param output_comand array onde escrever o comando
  * @param output_comand_size tamanho do array que foi fornecido
+ * @param inatividade int valor tempo inatividade
+ * @param execucao int valor tempo execucao
  * @return int 0 se correu tudo bem
  */
-int getOutputInfo(int logfile, int destination_file, off_t file_index, char output_comand[], int output_comand_size);
+int getCommandInfo(int logfile, off_t file_index, char output_comand[], int output_comand_size, int inatividade, int execucao);
 
 #endif
