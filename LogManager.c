@@ -148,15 +148,15 @@ int updateLogs(int logfile, char* comando, int inatividade, int execucao, int fi
         return -1;
 
     //write int int comando
-    write(logfile, inatividade, sizeof(int));
-    write(logfile, execucao, sizeof(int));
+    write(logfile, &inatividade, sizeof(int));
+    write(logfile, &execucao, sizeof(int));
     write(logfile, comando, strlen(comando));
     write(logfile, "\n", 1);
 
     //write time + output
 
     const time_t timer = time(NULL);
-    char * time = ctime(timer);
+    char * time = ctime(&timer);
     write(logfile,time,strlen(time));
     write(logfile, "\n", 1);
 
@@ -180,7 +180,7 @@ int updateLogs(int logfile, char* comando, int inatividade, int execucao, int fi
  */
 int writeOutputTo(int logfile, int destination_file, off_t file_index)
 {
-    if (lseek(logfile, file_index, SEEK_SET) < 0)
+    if (lseek(logfile, file_index+8, SEEK_SET) < 0)
         return -1;
 
     ssize_t n;
@@ -193,6 +193,8 @@ int writeOutputTo(int logfile, int destination_file, off_t file_index)
         if (t0 < n)
             break;
     }
+
+    write(destination_file,"\n",1);
 
     return 0;
 }
@@ -210,22 +212,21 @@ int writeOutputTo(int logfile, int destination_file, off_t file_index)
  */
 
 //originally getOutputInfo
-int getCommandInfo(int logfile, off_t file_index, char output_comand[], int output_comand_size, int inatividade, int execucao)
+int getCommandInfo(int logfile, off_t file_index, char output_comand[], int output_comand_size, int *inatividade, int *execucao)
 {
     if (lseek(logfile, file_index, SEEK_SET) < 0)
         return -1;
 
     int i;
     read(logfile, &i, sizeof(int));
-    inatividade = i;
+    *inatividade = i;
 
     read(logfile, &i, sizeof(int));
-    execucao = i;
+    *execucao = i;
 
     char buffer[MaxLineSize];
     readln(logfile, buffer, MaxLineSize);
 
-    int i;
     output_comand_size--;
     for (i = 0; buffer[i] && i < output_comand_size; i++)
     {

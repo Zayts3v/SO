@@ -14,15 +14,17 @@
 typedef struct _taskinfo
 {
     char *command, *outputfilename;
-    int pid, index, output;
+    int pid, index, output, RTM, ITM;
 } * TaskInfo;
 
-TaskInfo mkTaskInfo(char *comand, int pid, int index)
+TaskInfo mkTaskInfo(char *comand, int pid, int index, int RTM, int ITM)
 {
     TaskInfo res = calloc(1, sizeof(struct _taskinfo));
     res->command = comand;
     res->pid = pid;
     res->index = index;
+    res->ITM = ITM;
+    res->RTM = RTM;
 
     char outname[20];
     snprintf(outname, 20, "task%d.out", index);
@@ -76,16 +78,17 @@ ArgusStatus msystem = NULL;
 
 void TaskCleaner(int signum)
 {
-    for (List *l = &(msystem->tasklist); *l;)
+    List *l = &(msystem->tasklist);
+    while (*l)
     {
         TaskInfo task = (*l)->data;
         int status;
-        if (kill(0, task->pid) != 0 || waitpid(task->pid, &status, WNOHANG) == task->pid)
+        if (waitpid(task->pid, &status, WNOHANG) != 0)
         {
-            int pos = updateLogs(msystem->logs, task->command, task->output);
+            int pos = updateLogs(msystem->logs, task->command, task->ITM, task->RTM, task->output);
             updateIDX(msystem->logsIDX, task->index, pos);
             TaskInfo_free(task);
-            List_freeBlock(l);
+            (*l) = List_freeBlock(*l);
         }
         else
             l = &(*l)->next;
@@ -110,14 +113,14 @@ int setMaximumIdleTime(int IdleTime)
 
 int execute(char *command)
 {
-    TaskInfo res = mkTaskInfo(command, -1, msystem->taskcount + 1);
+    TaskInfo res = mkTaskInfo(command, -1, msystem->taskcount + 1, msystem->RunTimeMax, msystem->RunTimeMax);
     int pid;
 
     if ((pid = fork()) == 0)
     {
         updateIDX(msystem->logsIDX, -1, 0);
         dup2(res->output, 1);
-        pid = task(res->command, msystem->RunTimeMax, msystem->IdleTimeMax);
+        pid = task(res->command, res->RTM, res->ITM);
         _exit(pid);
     }
     if (pid < 0)
@@ -130,9 +133,9 @@ int execute(char *command)
     res->pid = pid;
     msystem->taskcount++;
     msystem->tasklist = List_prepend(msystem->tasklist, res);
-    char outputstring[32];
-    snprintf(outputstring, 32, "Nova tarefa #%d \n", res->index);
-    write(1, outputstring, strlen(outputstring));
+    char comand[32];
+    snprintf(comand, 32, "Nova tarefa #%d \n", res->index);
+    write(1, comand, strlen(comand));
 
     return 0;
 }
@@ -151,14 +154,15 @@ int listTasks()
 
 int terminate(int task)
 {
+    fprintf(stderr, "%x ", msystem->tasklist);
     for (List l = msystem->tasklist; l; l = l->next)
     {
         TaskInfo info = l->data;
-        if (info->index < task)
-            break;
+        fprintf(stderr, "%d", info->index < task);
         if (info->index == task)
         {
-            kill(SIGTERM, info->pid);
+            fprintf(stderr, "%d",
+                    kill(SIGTERM, info->pid));
             break;
         }
     }
@@ -167,24 +171,28 @@ int terminate(int task)
 
 int history()
 {
-    char boolarray[msystem->taskcount];
+    char statusarray[msystem->taskcount];
     for (int i = 0; i < msystem->taskcount; i++)
-        boolarray[i] = 0;
+        statusarray[i] = 0;
 
     for (List l = msystem->tasklist; l; l = l->next)
-        boolarray[((TaskInfo)l)->index] = 1;
+        statusarray[((TaskInfo)l)->index] = 0x1;
 
+    char out[MaxLineSize];
+    out[0] = '\0';
     for (int i = 0; i < msystem->taskcount; i++)
-        if (!boolarray[i])
+        if (!statusarray[i])
         {
-            char outputstring[288];
-            snprintf(outputstring, 32, "#%d: ", i);
-            getOutputInfo(msystem->logs, 1, readIndexIDX(msystem->logsIDX, i), outputstring, 286 - strlen(outputstring));
-            int t0 = strlen(outputstring);
-            outputstring[t0++] = '\n';
-            outputstring[t0] = '\0';
-            write(1, outputstring, t0);
+            int ITM, RTM;
+            snprintf(out, 32, "#%d: ", i);
+            getCommandInfo(msystem->logs, readIndexIDX(msystem->logsIDX, i), out, MaxLineSize - strlen(out) - 64, &ITM, &RTM);
+            if (RTM > 0)
+                snprintf(out + strlen(out), 32, "Texec Maximo: %d ", RTM);
+            if (ITM > 0)
+                snprintf(out + strlen(out), 32, "Tinatividade Maximo: %d ", ITM);
+            write(1, out, strlen(out));
         }
+
     return 0;
 }
 
@@ -196,6 +204,7 @@ int output(int task)
             char *bruh_moment = "A tarefa ainda está em execução\n";
             write(1, bruh_moment, strlen(bruh_moment));
         }
+
     return !(writeOutputTo(msystem->logs, 1, readIndexIDX(msystem->logsIDX, task)) > 0);
 }
 
@@ -234,16 +243,17 @@ int argusRTE(int displayname)
                 if (strcmp(comand, "tempo-execucao") == 0 && objects)
                 {
                     setMaximumRunTime(atoi(objects));
+                    break;
                 }
                 if (strcmp(comand, "tempo-inatividade") == 0 && objects)
                 {
                     setMaximumRunTime(atoi(objects));
+                    break;
                 }
-                if (strcmp(comand, "terminar"))
+                if (strcmp(comand, "terminar") && objects)
                 {
-                    terminate(atoi(objects) && objects);
-
-
+                    terminate(atoi(objects));
+                    break;
                 }
                 break;
             case 'e':

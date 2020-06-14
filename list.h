@@ -70,6 +70,6 @@ void List_lfree(List l);
  * @param l 
  * @param datafreefunc 
  */
-void List_freeBlock (List *l);
+List List_freeBlock (List l);
 
 #endif

@@ -57,11 +57,11 @@ void List_lfree(List l)
     }
 }
 
-void List_freeBlock(List *l)
+List List_freeBlock(List l)
 {
-    List BEGONE = (*l);
-    if (BEGONE == NULL)
-        return;
-    *l = BEGONE->next;
-    free(BEGONE);
+    if (!l)
+        return NULL;
+    List bruhmium = l->next;
+    free(l);
+    return bruhmium;
 }

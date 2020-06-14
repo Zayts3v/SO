@@ -79,6 +79,6 @@ int writeOutputTo(int logfile, int destination_file, off_t file_index);
  * @param execucao int valor tempo execucao
  * @return int 0 se correu tudo bem
  */
-int getCommandInfo(int logfile, off_t file_index, char output_comand[], int output_comand_size, int inatividade, int execucao);
+int getCommandInfo(int logfile, off_t file_index, char output_comand[], int output_comand_size, int *inatividade, int *execucao);
 
 #endif
