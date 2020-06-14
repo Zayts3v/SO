@@ -27,7 +27,7 @@ TaskInfo mkTaskInfo(char *comand, int pid, int index)
     char outname[20];
     snprintf(outname, 20, "task%d.out", index);
     res->outputfilename = strdup(outname);
-    res->output = open(res->outputfilename, O_CREAT | O_TRUNC | O_RDWR);
+    res->output = open(res->outputfilename, O_CREAT | O_TRUNC | O_RDWR, 0666);
     if (res->output < 0)
         res->output = 1;
 
@@ -66,25 +66,26 @@ ArgusStatus initArgusStatus()
     return res;
 }
 
-void freeArgusStatus(ArgusStatus in){
-    List_free(in->tasklist,(void (*)(void *))TaskInfo_free);
+void freeArgusStatus(ArgusStatus in)
+{
+    List_free(in->tasklist, (void (*)(void *))TaskInfo_free);
     free(in);
 }
 
 ArgusStatus msystem = NULL;
 
-void taskMaid(int signum)
+void TaskCleaner(int signum)
 {
     for (List *l = &(msystem->tasklist); *l;)
     {
         TaskInfo task = (*l)->data;
         int status;
-        if (task->pid && waitpid(task->pid, &status, WNOHANG) == task->pid)
+        if (kill(0, task->pid) != 0 || waitpid(task->pid, &status, WNOHANG) == task->pid)
         {
             int pos = updateLogs(msystem->logs, task->command, task->output);
             updateIDX(msystem->logsIDX, task->index, pos);
-            *l = (*l)->next;
             TaskInfo_free(task);
+            List_freeBlock(l);
         }
         else
             l = &(*l)->next;
@@ -119,10 +120,10 @@ int execute(char *command)
         pid = task(res->command, msystem->RunTimeMax, msystem->IdleTimeMax);
         _exit(pid);
     }
-    else
+    if (pid < 0)
     {
-        char *bruh_moment = "Erro a iniciar a tarefa";
-        write(1, bruh_moment, sizeof(bruh_moment));
+        char *bruh_moment = "Erro a iniciar a tarefa\n";
+        write(1, bruh_moment, strlen(bruh_moment));
         return -1;
     }
 
@@ -131,6 +132,7 @@ int execute(char *command)
     msystem->tasklist = List_prepend(msystem->tasklist, res);
     char outputstring[32];
     snprintf(outputstring, 32, "Nova tarefa #%d \n", res->index);
+    write(1, outputstring, strlen(outputstring));
 
     return 0;
 }
@@ -152,10 +154,11 @@ int terminate(int task)
     for (List l = msystem->tasklist; l; l = l->next)
     {
         TaskInfo info = l->data;
-        if (info->index <= task)
+        if (info->index < task)
+            break;
+        if (info->index == task)
         {
-            if (info->index == task)
-                kill(SIGTERM, info->pid);
+            kill(SIGTERM, info->pid);
             break;
         }
     }
@@ -172,10 +175,10 @@ int history()
         boolarray[((TaskInfo)l)->index] = 1;
 
     for (int i = 0; i < msystem->taskcount; i++)
-        if (boolarray[i])
+        if (!boolarray[i])
         {
             char outputstring[288];
-            snprintf(outputstring, 32, "#i%d ", i);
+            snprintf(outputstring, 32, "#%d: ", i);
             getOutputInfo(msystem->logs, 1, readIndexIDX(msystem->logsIDX, i), outputstring, 286 - strlen(outputstring));
             int t0 = strlen(outputstring);
             outputstring[t0++] = '\n';
@@ -187,23 +190,29 @@ int history()
 
 int output(int task)
 {
+    for (List l = msystem->tasklist; l && ((TaskInfo)l->data)->index > task; l = l->next)
+        if (((TaskInfo)l->data)->index == task)
+        {
+            char *bruh_moment = "A tarefa ainda está em execução\n";
+            write(1, bruh_moment, strlen(bruh_moment));
+        }
     return !(writeOutputTo(msystem->logs, 1, readIndexIDX(msystem->logsIDX, task)) > 0);
 }
 
 char *help()
 {
-    return "bruh_1\nbruh2\nbruh3\nbruh4\n";
+    return "\n\ttempo-inatividade <tempo em segundos>\n\ttempo-execucao <tempo em segundos>\n\texecutar <tarefa>\n\tlistar\n\tterminar <nº da tarefa>\n\thistorico\n\toutput <nº da tarefa>\n\n";
 }
 
 /**
- * @brief Intrepeta comandos do STDIN e escreve os resultados dos mesmos no STDOUT
+ * @brief Runt Time Envirement do progama argus
  * 
  * @param displayname Indica se pretende-se mostrar a identificação do progama em cada comando
  * @return int 0 se acabou com sucesso, qualquer outro numero se ocorreu um erro
  */
-int argus(int displayname)
+int argusRTE(int displayname)
 {
-    signal(SIGCHLD, taskMaid);
+    signal(SIGCHLD, TaskCleaner);
     msystem = initArgusStatus();
 
     char buffer[ReadBufferSize];
@@ -215,29 +224,31 @@ int argus(int displayname)
     while ((rsize = readln(0, buffer, ReadBufferSize)) >= 0)
     {
         char *comand = strtok(buffer, " ");
+        char *objects = strtok(NULL, "\0");
 
-        //O objetivo deste switch é tornar o codigo mais rapido
         if (comand != NULL)
         {
             switch (comand[0]) //TODO IMPRIMIR NO STDOUT
             {
             case 't':
-                if (strcmp(comand, "tempo-execucao") == 0)
+                if (strcmp(comand, "tempo-execucao") == 0 && objects)
                 {
-                    setMaximumRunTime(atoi(buffer + strlen(comand)));
+                    setMaximumRunTime(atoi(objects));
                 }
-                if (strcmp(comand, "tempo-inatividade") == 0)
+                if (strcmp(comand, "tempo-inatividade") == 0 && objects)
                 {
-                    setMaximumRunTime(atoi(buffer + strlen(comand)));
+                    setMaximumRunTime(atoi(objects));
                 }
                 if (strcmp(comand, "terminar"))
                 {
-                    terminate(atoi(buffer + strlen(comand)));
+                    terminate(atoi(objects) && objects);
+
+
                 }
                 break;
             case 'e':
                 if (strcmp(comand, "executar") == 0)
-                    execute(buffer + strlen(comand));
+                    execute(objects);
                 break;
             case 'l':
                 if (strcmp(comand, "listar") == 0)
@@ -249,11 +260,14 @@ int argus(int displayname)
                 break;
             case 'a':
                 if (strcmp(comand, "ajuda") == 0)
-                    help();
+                {
+                    char *res = help();
+                    write(1, res, strlen(res));
+                }
                 break;
             case 'o':
-                if (strcmp(comand, "output") == 0)
-                    output(atoi(buffer + strlen(comand)));
+                if (strcmp(comand, "output") == 0 && objects)
+                    output(atoi(objects));
                 break;
             case 'q':
                 if (strcmp(comand, "quit") == 0)

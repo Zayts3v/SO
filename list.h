@@ -57,4 +57,19 @@ void ** List_lookupPointer(List l, int (*keyfinder)(void * data));
  */
 List List_append(List l,void * data);
 
+/**
+ * @brief 
+ * 
+ * @param l 
+ */
+void List_lfree(List l);
+
+/**
+ * @brief 
+ * 
+ * @param l 
+ * @param datafreefunc 
+ */
+void List_freeBlock (List *l);
+
 #endif

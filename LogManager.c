@@ -48,9 +48,9 @@ int openIDX(int *nLinhas)
     if (fi > -1)
     {
         int i;
-        if (read(fi, &i, 4) == 4)
+        if (read(fi, &i, 4) > 0)
             if (magicnumber == i)
-                if (read(fi, &i, 4) == 4)
+                if (read(fi, &i, 4) > 0)
                 {
                     *nLinhas = i;
                     return fi;
@@ -140,7 +140,8 @@ int updateLogs(int logfile, char *comando, int descriptortocopy)
     lseek(descriptortocopy, 0, SEEK_SET); //NOTA: Se descriptortocopy for um pipe isto da erro e nao faz nada
 
     int pos = lseek(logfile, 0, SEEK_END); //escreve no fim
-    if (pos < 0) return -1; 
+    if (pos < 0)
+        return -1;
 
     write(logfile, comando, strlen(comando)); //write comando
     write(logfile, "\n", 1);
@@ -179,6 +180,7 @@ int writeOutputTo(int logfile, int destination_file, off_t file_index)
         if (t0 < n)
             break;
     }
+
     return 0;
 }
 
@@ -202,12 +204,11 @@ int getOutputInfo(int logfile, int destination_file, off_t file_index, char outp
 
     int i;
     output_comand_size--;
-    for ( i = 0; buffer[i] && i < output_comand_size; i++)
+    for (i = 0; buffer[i] && i < output_comand_size; i++)
     {
         output_comand[i] = buffer[i];
     }
-    output_comand[i]='\0';
-
+    output_comand[i] = '\0';
 
     return 0;
 }

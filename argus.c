@@ -95,6 +95,6 @@ int shell(int argc, char **argv)
  */
 int main(int argc, char *argv[])
 {
-    if (argc == 1) return argus(1);
+    if (argc == 1) return argusRTE(1);
     return shell(argc - 1, argv + 1);
 }

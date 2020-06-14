@@ -2,23 +2,14 @@
 #include <string.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 #include "constants.h"
 #include "list.h"
 
 List pids = NULL;
 
-/**
- * @brief Adiciona um ProcessID ao registo dos mesmos
- * 
- * @param pid ProcessID a ser registado
- */
-void addPID(int pid)
-{
-    int *t = calloc(1, sizeof(int));
-    *t = pid;
-    pids = List_prepend(pids, t);
-}
+#include <stdio.h>
 
 /**
  * @brief Dado um Sinal termina a tarefa a ser executada
@@ -49,6 +40,18 @@ void TerminateFather(int signum)
 {
     kill(getppid(), SIGTERM);
     _exit(1);
+}
+
+/**
+ * @brief Adiciona um ProcessID ao registo dos mesmos
+ * 
+ * @param pid ProcessID a ser registado
+ */
+void addPID(int pid)
+{
+    int *t = calloc(1, sizeof(int));
+    *t = pid;
+    pids = List_prepend(pids, t);
 }
 
 /**
@@ -97,7 +100,7 @@ int execSystem(char *comando)
 }
 
 int task(char *comand, int RunTimeMax, int IdleTimeMax)
-{   
+{
     if (comand == NULL)
         return -1;
 
@@ -129,10 +132,10 @@ int task(char *comand, int RunTimeMax, int IdleTimeMax)
                 dup2(pp[1], 1);
                 close(pp[1]);
 
-                if (cycle < 1) 
+                if (cycle < 1)
                     execSystem((char *)t0->data);
-                else    //se nao estivermos na primeira iteração do ciclo em vez de se executar um comando o processo fica a medir 
-                {       //a variaçao do fluxo do pipe, se esta variaçao nao satisfaz o tempo limite um SIGTERM é enviado ao seu pai
+                else //se nao estivermos na primeira iteração do ciclo em vez de se executar um comando o processo fica a medir
+                {    //a variaçao do fluxo do pipe, se esta variaçao nao satisfaz o tempo limite um SIGTERM é enviado ao seu pai
                     signal(SIGALRM, TerminateFather);
                     idlelimit(IdleTimeMax);
                 }
@@ -148,6 +151,7 @@ int task(char *comand, int RunTimeMax, int IdleTimeMax)
         }
     }
     dup2(stdout, 1);
+
     if ((st = fork()) == 0)
     {
         execSystem((char *)t0->data);
@@ -155,13 +159,15 @@ int task(char *comand, int RunTimeMax, int IdleTimeMax)
     if (st < 0)
         _exit(-1); //Se houver um erro ao criar um filho a tarefa é cancelada
 
+
     if (RunTimeMax > 0)
         alarm(RunTimeMax);
 
     waitpid(st, &st, WUNTRACED);
 
-    List_free(comandList, free);
-    
+    List_lfree(comandList);
+    List_free(pids,free);
+
     killTask(0);
 
     return st;

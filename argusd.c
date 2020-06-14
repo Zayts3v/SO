@@ -28,7 +28,7 @@ int main()
     dup2(st, 1);
     close(st);
 
-    st = argus(0);
+    st = argusRTE(0);
 
     unlink(InputFIFOName);
     unlink(OutputFIFOName);

@@ -1,8 +1,6 @@
 #include "list.h"
 #include <stdlib.h>
 
-
-
 List List_alloc()
 {
     return calloc(1, sizeof(struct _list));
@@ -16,11 +14,13 @@ List List_prepend(List l, void *data)
     return res;
 }
 
-List List_append(List l,void * data){
+List List_append(List l, void *data)
+{
 
     List *ap = &l;
-    while(*ap) ap = &(*ap)->next;
-    
+    while (*ap)
+        ap = &(*ap)->next;
+
     *ap = List_alloc();
     (*ap)->data = data;
 
@@ -39,10 +39,29 @@ void List_free(List l, void (*datafreefunc)(void *data))
 {
     while (l)
     {
-        List t0 = l->next;
-        if (l->data)
+        List t0 = l;
+        l = l->next;
+        if (t0->data)
             (*datafreefunc)(l->data);
         free(t0);
     }
 }
 
+void List_lfree(List l)
+{
+    while (l)
+    {
+        List t0 = l;
+        l = l->next;
+        free(t0);
+    }
+}
+
+void List_freeBlock(List *l)
+{
+    List BEGONE = (*l);
+    if (BEGONE == NULL)
+        return;
+    *l = BEGONE->next;
+    free(BEGONE);
+}
