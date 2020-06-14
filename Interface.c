@@ -66,6 +66,11 @@ ArgusStatus initArgusStatus()
     return res;
 }
 
+void freeArgusStatus(ArgusStatus in){
+    List_free(in->tasklist,(void (*)(void *))TaskInfo_free);
+    free(in);
+}
+
 ArgusStatus msystem = NULL;
 
 void taskMaid(int signum)
@@ -150,7 +155,7 @@ int terminate(int task)
         if (info->index <= task)
         {
             if (info->index == task)
-                kill(SIGINT, info->pid);
+                kill(SIGTERM, info->pid);
             break;
         }
     }
@@ -262,5 +267,6 @@ int argus(int displayname)
             write(1, argusTag, strlen(argusTag));
     }
 
+    freeArgusStatus(msystem);
     return rsize;
 }

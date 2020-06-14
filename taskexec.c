@@ -4,8 +4,9 @@
 #include <signal.h>
 #include <sys/wait.h>
 #include "constants.h"
+#include "list.h"
 
-int *pids = NULL, ind = 0, arrsize = 1;
+List pids = NULL;
 
 /**
  * @brief Adiciona um ProcessID ao registo dos mesmos
@@ -14,12 +15,9 @@ int *pids = NULL, ind = 0, arrsize = 1;
  */
 void addPID(int pid)
 {
-    if (ind >= arrsize)
-    {
-        arrsize *= 2;
-        pids = realloc(pids, arrsize * sizeof(int));
-    }
-    pids[ind++] = pid;
+    int *t = calloc(1, sizeof(int));
+    *t = pid;
+    pids = List_prepend(pids, t);
 }
 
 /**
@@ -29,11 +27,13 @@ void addPID(int pid)
  */
 void killTask(int signum)
 {
-    for (int i = 0; i < ind; i++)
-        kill(SIGKILL, pids[i]);
+    for (List l; l; l = l->next)
+        kill(SIGKILL, *((int *)l->data));
     switch (signum)
     {
-    case SIGINT:
+    case 0:
+        return;
+    case SIGTERM:
         _exit(1);
     case SIGALRM:
         _exit(2);
@@ -45,9 +45,9 @@ void killTask(int signum)
  * 
  * @param signum Sinal original
  */
-void IterruptFather(int signum)
+void TerminateFather(int signum)
 {
-    kill(getppid(), SIGINT);
+    kill(getppid(), SIGTERM);
     _exit(1);
 }
 
@@ -96,53 +96,50 @@ int execSystem(char *comando)
     return -1;
 }
 
-/**
- * @brief Executa uma Tarefa
- * 
- * @param cmdN Nº de comandos da Tarefa
- * @param cmdL Lista de comandos da Tarefa
- * @param RuntimeMax Tempo de Execução Maximo da tarefa (se for negativo significa que a tarefa nao tem limite de tempo)
- * @param IdleTimeMax Tempo Maximo de inatividade de cada subtarefa (se for negativo significa qnao existe limite)
- * @return int 
- */
-int task(int cmdN, char **cmdL, int RuntimeMax, int IdleTimeMax)
-{
+int task(char *comand, int RunTimeMax, int IdleTimeMax)
+{   
+    if (comand == NULL)
+        return -1;
+
     signal(SIGALRM, killTask);
-    signal(SIGINT, killTask);
-    int i, st, pp[2], stdout = dup(1);
+    signal(SIGTERM, killTask);
 
-    for (i = 0; i < cmdN - 1; i++)
+    List comandList = NULL;
+    char *p = strtok(comand, "|");
+    while (p)
     {
-        if (pipe(pp) < 0)
-            _exit(-1); //Se houver um erro ao abrir um pipe a tarefa é cancelada
-        if ((st = fork()) == 0)
-        {
-            close(pp[0]);
-            dup2(pp[1], 1);
-            close(pp[1]);
-            execSystem(cmdL[i]);
-            _exit(-1);
-        }
-        if (st < 0)
-            _exit(-1); //Se houver um erro ao criar um filho a tarefa é cancelada
-        close(pp[1]);
-        dup2(pp[0], 0);
-        close(pp[0]);
+        comandList = List_append(comandList, p);
+        p = strtok(NULL, "|");
+    }
 
-        //Lim
-        if (IdleTimeMax > 0)
+    char tITM = (IdleTimeMax > 0 ? 1 : 0);
+    int st, pp[2], stdout = dup(1);
+    List t0 = NULL;
+
+    for (t0 = comandList; t0 && t0->next; t0 = t0->next)
+    {
+
+        for (int cycle = 0; cycle < tITM + 1; cycle++) //SE tITM for 1 o ciclo itera duas vezes senao itera apenas uma vez
         {
             if (pipe(pp) < 0)
                 _exit(-1); //Se houver um erro ao abrir um pipe a tarefa é cancelada
             if ((st = fork()) == 0)
             {
-                signal(SIGALRM, IterruptFather);
                 close(pp[0]);
                 dup2(pp[1], 1);
                 close(pp[1]);
-                idlelimit(IdleTimeMax);
-                _exit(0);
+
+                if (cycle < 1) 
+                    execSystem((char *)t0->data);
+                else    //se nao estivermos na primeira iteração do ciclo em vez de se executar um comando o processo fica a medir 
+                {       //a variaçao do fluxo do pipe, se esta variaçao nao satisfaz o tempo limite um SIGTERM é enviado ao seu pai
+                    signal(SIGALRM, TerminateFather);
+                    idlelimit(IdleTimeMax);
+                }
+
+                _exit(-1);
             }
+
             if (st < 0)
                 _exit(-1); //Se houver um erro ao criar um filho a tarefa é cancelada
             close(pp[1]);
@@ -153,15 +150,19 @@ int task(int cmdN, char **cmdL, int RuntimeMax, int IdleTimeMax)
     dup2(stdout, 1);
     if ((st = fork()) == 0)
     {
-        execSystem(cmdL[cmdN - 1]);
+        execSystem((char *)t0->data);
     }
     if (st < 0)
         _exit(-1); //Se houver um erro ao criar um filho a tarefa é cancelada
 
-    if (RuntimeMax > 0)
-        alarm(RuntimeMax);
+    if (RunTimeMax > 0)
+        alarm(RunTimeMax);
 
     waitpid(st, &st, WUNTRACED);
 
-    _exit(0);
+    List_free(comandList, free);
+    
+    killTask(0);
+
+    return st;
 }

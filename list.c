@@ -16,6 +16,17 @@ List List_prepend(List l, void *data)
     return res;
 }
 
+List List_append(List l,void * data){
+
+    List *ap = &l;
+    while(*ap) ap = &(*ap)->next;
+    
+    *ap = List_alloc();
+    (*ap)->data = data;
+
+    return l;
+}
+
 int List_length(List l)
 {
     int i;
@@ -35,11 +46,3 @@ void List_free(List l, void (*datafreefunc)(void *data))
     }
 }
 
-void ** List_lookupPointer(List l, int (*keyfinder)(void * data)){
-    for(;l;l=l->next){
-        if (l -> data && (*keyfinder)(l->data)){
-            return &(l->data);
-        }
-    }
-    return NULL;
-}
