@@ -97,6 +97,7 @@ int shell(int argc, char **argv)
 
     //Ler operação do servidor
     
+    alarm(10);
     char buffer[ReadBufferSize];
     if ((i = read(serverout, buffer, ReadBufferSize)) > 0)
     {

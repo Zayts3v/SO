@@ -61,6 +61,8 @@ void TaskInfo_free(TaskInfo info)
 {
     if (info)
     {
+        if (info->command)
+            free(info->command);
         if (info->outputfilename)
         {
             unlink(info->outputfilename);
@@ -200,7 +202,7 @@ void setMaximumIdleTime(int IdleTime)
  */
 int execute(char *command)
 {
-    TaskInfo res = mkTaskInfo(command, -1, msystem->taskcount + 1, msystem->RunTimeMax, msystem->IdleTimeMax);
+    TaskInfo res = mkTaskInfo(strdup(command), -1, msystem->taskcount + 1, msystem->RunTimeMax, msystem->IdleTimeMax);
     pid_t pid;
 
     if ((pid = fork()) == 0)
@@ -377,22 +379,22 @@ int argusRTE_readcomand(int filetoread, char **comand, char **objects)
         return res;
     *comand = strtok(buffer, " ");
     if (*comand)
-    {   *comand = strdup(*comand);
+    {
+        *comand = strdup(*comand);
         *objects = strtok(NULL, "\0");
-        if (*objects!=NULL) *objects = strdup(*objects);
-
+        if (*objects != NULL)
+            *objects = strdup(*objects);
     }
-    
+
     return res;
 }
 
 void argusRTE_readcomand_free(char *comand, char *objects)
 {
-    if (comand!=NULL)
+    if (comand != NULL)
         free(comand);
-    if (objects!=NULL)
+    if (objects != NULL)
         free(objects);
-
 }
 
 /**
@@ -403,7 +405,7 @@ void argusRTE_readcomand_free(char *comand, char *objects)
  * @return int 
  */
 int argusRTE_run(char *comand, char *objects)
-{  
+{
     if (comand != NULL)
     {
         if (comand[0] == 'a' && strcmp(comand, "ajuda") == 0)
