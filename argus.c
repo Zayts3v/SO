@@ -98,10 +98,10 @@ int shell(int argc, char **argv)
     //Ler operação do servidor
     
     char buffer[ReadBufferSize];
-    //if ((i = read(serverout, buffer, ReadBufferSize)) > 0)
-    //{
-    //    write(1, buffer, i);
-    //}
+    if ((i = read(serverout, buffer, ReadBufferSize)) > 0)
+    {
+        write(1, buffer, i);
+    }
     close(serverout);
     close(serverin);
 
