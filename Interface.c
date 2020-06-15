@@ -127,7 +127,7 @@ void argusKillAllTasks(int signum)
     {
         kill(-getpgid(((TaskInfo)l->data)->pid), SIGKILL);
     }
-    char *done = "  Todas as tarefas foram terminada\n";
+    char *done = "\nTodas as tarefas foram terminadas\n";
     write(1, done, strlen(done));
 }
 
@@ -159,7 +159,7 @@ void TaskCleaner(int signum)
             int pos = updateLogs(msystem->logs, task->command, task->ITM, task->RTM, task->output);
             updateIDX(msystem->logsIDX, task->index, pos);
             TaskInfo_free(task);
-            (*l) = List_freeBlock(*l);
+            (*l) = List_tail(*l);
         }
         else
             l = &(*l)->next;
@@ -174,6 +174,8 @@ void TaskCleaner(int signum)
 void setMaximumRunTime(int RunTime)
 {
     msystem->RunTimeMax = RunTime;
+    char *out = (RunTime < 0 ? "Temporizador desativado\n" : "Temporizador defenido\n");
+    write(1, out, strlen(out));
 }
 /**
  * @brief Define o tempo maximo de inatividade das operações das proximas tarefas a serem executadas
@@ -183,6 +185,8 @@ void setMaximumRunTime(int RunTime)
 void setMaximumIdleTime(int IdleTime)
 {
     msystem->IdleTimeMax = IdleTime;
+    char *out = (IdleTime < 0 ? "Temporizador desativado\n" : "Temporizador defenido\n");
+    write(1, out, strlen(out));
 }
 
 /**
@@ -193,7 +197,7 @@ void setMaximumIdleTime(int IdleTime)
  */
 int execute(char *command)
 {
-    TaskInfo res = mkTaskInfo(command, -1, msystem->taskcount + 1, msystem->RunTimeMax, msystem->RunTimeMax);
+    TaskInfo res = mkTaskInfo(command, -1, msystem->taskcount + 1, msystem->RunTimeMax, msystem->IdleTimeMax);
     pid_t pid;
 
     if ((pid = fork()) == 0)
@@ -212,7 +216,7 @@ int execute(char *command)
     //Se o fork falhar
     if (pid < 0)
     {
-        char *bruh_moment = "Erro a iniciar a tarefa\n";
+        char *bruh_moment = "Erro ao iniciar a tarefa\n";
         write(1, bruh_moment, strlen(bruh_moment));
         TaskInfo_free(res);
         return -1;
@@ -233,12 +237,17 @@ int execute(char *command)
  */
 void listTasks()
 {
-    char stringbuff[256];
     for (List l = msystem->tasklist; l; l = l->next)
     {
         TaskInfo info = l->data;
-        snprintf(stringbuff, 256, "#%d: %s\n", info->index, info->command);
+        char stringbuff[MaxLineSize];
+        snprintf(stringbuff, MaxLineSize, "#%d: %s\n", info->index, info->command);
         write(1, stringbuff, strlen(stringbuff));
+    }
+    if (msystem->tasklist == NULL)
+    {
+        char *out = "Nenhuma tarefa em execução\n";
+        write(1, out, strlen(out));
     }
 }
 
@@ -250,6 +259,8 @@ void listTasks()
  */
 int terminate(int task)
 {
+    char *out;
+
     List l = msystem->tasklist;
     while (l)
     {
@@ -259,12 +270,14 @@ int terminate(int task)
         if (info->index == task)
         {
             kill(-getpgid(info->pid), SIGKILL);
+            out = "Sucesso\n";
+            write(1, out, strlen(out));
             return 0;
         }
         l = l->next;
     }
 
-    char *out = "Tarefa Inexistente\n";
+    out = "Tarefa inexistente\n";
     write(1, out, strlen(out));
     return -1;
 }
@@ -281,9 +294,11 @@ void history()
     for (List l = msystem->tasklist; l; l = l->next)
         statusarray[((TaskInfo)l)->index] = 0x1;
 
+    int count=0;
     for (int i = 0; i < msystem->taskcount; i++)
         if (!statusarray[i])
         {
+            count++;
             int ITM, RTM;
             char out[MaxLineSize];
             getCommandInfo(msystem->logs, readIndexIDX(msystem->logsIDX, i), out, MaxLineSize, &ITM, &RTM);
@@ -295,6 +310,11 @@ void history()
                 snprintf(S_RTM, 48, "Tinatividade Maximo: %d ", RTM);
             printf("#%d: %s%s%s\n", i + 1, S_RTM, S_ITM, out);
         }
+    if (count == 0)
+    {
+        char *out = "Nenhuma tarefa em historico\n";
+        write(1, out, strlen(out));
+    }
 }
 
 /**
@@ -313,7 +333,7 @@ int output(int task)
             return -2;
         }
 
-    return -!(writeOutputTo(msystem->logs, 1, readIndexIDX(msystem->logsIDX, task)) > 0);
+    return writeOutputTo(msystem->logs, 1, readIndexIDX(msystem->logsIDX, task));
 }
 
 /**
@@ -363,7 +383,7 @@ int argusRTE(int displayname)
             else if (comand[0] == 'l' && strcmp(comand, "listar") == 0)
                 listTasks();
             else if (comand[0] == 'o' && strcmp(comand, "output") == 0 && objects)
-                 output(atoi(objects));
+                output(atoi(objects));
             else if (comand[0] == 's' && strcmp(comand, "sair") == 0)
                 break;
             else if (comand[0] == 't' && strcmp(comand, "terminar") == 0 && objects)
@@ -371,9 +391,12 @@ int argusRTE(int displayname)
             else if (comand[0] == 't' && strcmp(comand, "tempo-execucao") == 0 && objects)
                 setMaximumRunTime(atoi(objects));
             else if (comand[0] == 't' && strcmp(comand, "tempo-inatividade") == 0 && objects)
-                setMaximumRunTime(atoi(objects));
+                setMaximumIdleTime(atoi(objects));
             else
-                write(1, "Parametro Invalida\n", strlen("Parametro Invalida\n"));
+            {
+                char *out = "Parametro ou comando Invalido\n";
+                write(1, out, strlen("out"));
+            }
         }
         if (displayname)
             write(1, argusTag, strlen(argusTag));

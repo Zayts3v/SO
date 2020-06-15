@@ -57,7 +57,7 @@ void List_lfree(List l)
     }
 }
 
-List List_freeBlock(List l)
+List List_tail(List l)
 {
     if (!l)
         return NULL;

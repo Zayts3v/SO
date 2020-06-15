@@ -34,7 +34,7 @@ int readln(int fd, char *buffer, unsigned int nbytes)
 }
 
 /**
- * @brief Le uma linha do dado descritor caracter a caracter WARNING: INEFICIENTE, usar so quando fd possa ser um pipe
+ * @brief Le uma linha do dado descritor caracter a caracter WARNING: INEFICIENTE, usar so quando fd possa ser um pipe com pouco fluxo de dados
  * 
  * @param fd File descriptor a ser lido
  * @param buffer Buffer a ser escrito
@@ -244,16 +244,16 @@ int getCommandInfo(int logfile, off_t file_index, char output_comand[], int outp
         return -1;
 
     int i;
-    read(logfile, &i, sizeof(int));
+    read(logfile, &i, 4);
     *inatividade = i;
 
-    read(logfile, &i, sizeof(int));
+    read(logfile, &i, 4);
     *execucao = i;
 
     char buffer[MaxLineSize];
     readln(logfile, buffer, MaxLineSize);
 
-    printf("\n\n|%d|,%s\n\n", i, buffer);
+
 
     output_comand_size--;
     for (i = 0; buffer[i] && i < output_comand_size; i++)

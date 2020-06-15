@@ -16,6 +16,16 @@
 int readln(int fd, char *buffer, unsigned int nbytes);
 
 /**
+ * @brief Le uma linha do dado descritor caracter a caracter WARNING: INEFICIENTE, usar so quando fd possa ser um pipe com pouco fluxo de dados
+ * 
+ * @param fd File descriptor a ser lido
+ * @param buffer Buffer a ser escrito
+ * @param nbytes Nº de bytes limite que se podem ler
+ * @return int Nº de bytes lidos
+ */
+int readlncc(int fd, char *buffer, unsigned int nbytes);
+
+/**
  * @brief Abre um ficheiro idx, ou cria um caso este seja invalido ou nao existir
  * 
  * @param nLinhas nº de linhas do ficheiro aberto
