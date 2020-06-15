@@ -3,13 +3,13 @@
 #include <fcntl.h>
 #include <string.h>
 #include <time.h>
-#include "constants.h"
+#include "argus.h"
 
 /**
  * @brief magic number associado aos ficheiro idx compativel com o progama
  */
 const int magicnumber = 0x00000C01;
-const int magnumANDnullsize[2] = {magicnumber, 0};
+const int magnumANDnullsize[2] = {0x00000C01, 0};
 
 /**
  * @brief Le no maximo nbytes de um dado ficheiro imprime a primeira linha do mesmo num dado buffer
@@ -31,6 +31,31 @@ int readln(int fd, char *buffer, unsigned int nbytes)
             break;
         }
     return res;
+}
+
+/**
+ * @brief Le uma linha do dado descritor caracter a caracter WARNING: INEFICIENTE, usar so quando fd possa ser um pipe
+ * 
+ * @param fd File descriptor a ser lido
+ * @param buffer Buffer a ser escrito
+ * @param nbytes Nº de bytes limite que se podem ler
+ * @return int Nº de bytes lidos
+ */
+int readlncc(int fd, char *buffer, unsigned int nbytes)
+{
+    int i;
+    char c;
+    for (i = 0; i < nbytes; i++)
+    {
+        read(fd, &c, 1);
+        if (c == '\n')
+        {
+            buffer[i] = '\0';
+            break;
+        }
+        buffer[i] = c;
+    }
+    return i;
 }
 
 //---------------LOGS IDX---------------//
@@ -78,11 +103,12 @@ void updateIDX(int idxfile, int index, int valor)
 
     lseek(idxfile, 4, SEEK_SET);
     read(idxfile, &i, sizeof(int));
-    if (index < 0 || index > i){
+    if (index < 0 || index > i)
+    {
         index = i++;
         lseek(idxfile, 4, SEEK_SET);
         write(idxfile, &i, sizeof(int));
-    }    
+    }
 
     lseek(idxfile, index * sizeof(int), SEEK_CUR);
     write(idxfile, &valor, sizeof(valor));
@@ -138,7 +164,7 @@ int openLogs()
  * @param filetocopy descritor do output
  * @return int 
  */
-int updateLogs(int logfile, char* comando, int inatividade, int execucao, int filetocopy)
+int updateLogs(int logfile, char *comando, int inatividade, int execucao, int filetocopy)
 {
 
     lseek(filetocopy, 0, SEEK_SET); //NOTA: Se descriptortocopy for um pipe isto da erro e nao faz nada
@@ -156,8 +182,8 @@ int updateLogs(int logfile, char* comando, int inatividade, int execucao, int fi
     //write time + output
 
     const time_t timer = time(NULL);
-    char * time = ctime(&timer);
-    write(logfile,time,strlen(time));
+    char *time = ctime(&timer);
+    write(logfile, time, strlen(time));
     write(logfile, "\n", 1);
 
     ssize_t n;
@@ -180,7 +206,7 @@ int updateLogs(int logfile, char* comando, int inatividade, int execucao, int fi
  */
 int writeOutputTo(int logfile, int destination_file, off_t file_index)
 {
-    if (lseek(logfile, file_index+8, SEEK_SET) < 0)
+    if (lseek(logfile, file_index + 8, SEEK_SET) < 0)
         return -1;
 
     ssize_t n;
@@ -194,7 +220,7 @@ int writeOutputTo(int logfile, int destination_file, off_t file_index)
             break;
     }
 
-    write(destination_file,"\n",1);
+    write(destination_file, "\n", 1);
 
     return 0;
 }
@@ -227,6 +253,8 @@ int getCommandInfo(int logfile, off_t file_index, char output_comand[], int outp
     char buffer[MaxLineSize];
     readln(logfile, buffer, MaxLineSize);
 
+    printf("\n\n|%d|,%s\n\n", i, buffer);
+
     output_comand_size--;
     for (i = 0; buffer[i] && i < output_comand_size; i++)
     {
@@ -236,4 +264,3 @@ int getCommandInfo(int logfile, off_t file_index, char output_comand[], int outp
 
     return 0;
 }
-

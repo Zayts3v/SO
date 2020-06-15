@@ -5,7 +5,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
-#include "constants.h"
+#include "argus.h"
 #include "Interface.h"
 #include "taskexec.h"
 #include "list.h"
@@ -20,7 +20,7 @@ typedef struct _taskinfo
 {
     char *command, *outputfilename;
     pid_t pid;
-    int  index, output, RTM, ITM;
+    int index, output, RTM, ITM;
 } * TaskInfo;
 
 /**
@@ -113,6 +113,34 @@ void freeArgusStatus(ArgusStatus in)
  * @brief Estado Principal do argus
  */
 ArgusStatus msystem = NULL;
+
+/**
+ * @brief Força a terminação de todas as tarefas do argus
+ * 
+ * @param signum Sinal que provocou a chamada desta função
+ */
+void argusKillAllTasks(int signum)
+{
+    if (!msystem)
+        return;
+    for (List l = msystem->tasklist; l; l = l->next)
+    {
+        kill(-getpgid(((TaskInfo)l->data)->pid), SIGKILL);
+    }
+    char *done = "  Todas as tarefas foram terminada\n";
+    write(1, done, strlen(done));
+}
+
+/**
+ * @brief Força a terminação de todas as tarefas do argus e do argus em si
+ * 
+ * @param signum 
+ */
+void argusINT(int signum)
+{
+    argusKillAllTasks(0);
+    kill(-getpgrp(), SIGKILL);
+}
 
 /**
  * @brief Limpa as tarefas que invalidas ou quje ja terminaram do registo do progama
@@ -253,19 +281,19 @@ void history()
     for (List l = msystem->tasklist; l; l = l->next)
         statusarray[((TaskInfo)l)->index] = 0x1;
 
-    char out[MaxLineSize];
-    out[0] = '\0';
     for (int i = 0; i < msystem->taskcount; i++)
         if (!statusarray[i])
         {
             int ITM, RTM;
-            snprintf(out, 32, "#%d: ", i);
-            getCommandInfo(msystem->logs, readIndexIDX(msystem->logsIDX, i), out, MaxLineSize - strlen(out) - 64, &ITM, &RTM);
-            if (RTM > 0)
-                snprintf(out + strlen(out), 32, "Texec Maximo: %d ", RTM);
+            char out[MaxLineSize];
+            getCommandInfo(msystem->logs, readIndexIDX(msystem->logsIDX, i), out, MaxLineSize, &ITM, &RTM);
+            char S_ITM[48] = {0};
             if (ITM > 0)
-                snprintf(out + strlen(out), 32, "Tinatividade Maximo: %d ", ITM);
-            write(1, out, strlen(out));
+                snprintf(S_ITM, 48, "Tinatividade Maximo: %d ", ITM);
+            char S_RTM[48] = {0};
+            if (RTM > 0)
+                snprintf(S_RTM, 48, "Tinatividade Maximo: %d ", RTM);
+            printf("#%d: %s%s%s\n", i + 1, S_RTM, S_ITM, out);
         }
 }
 
@@ -307,75 +335,50 @@ char *help()
 int argusRTE(int displayname)
 {
     signal(SIGCHLD, TaskCleaner);
+    signal(SIGQUIT, argusKillAllTasks);
+    signal(SIGINT, argusINT);
     msystem = initArgusStatus();
 
     char buffer[ReadBufferSize];
-    int rsize = -1;
 
     if (displayname)
         write(1, argusTag, strlen(argusTag));
 
-    while ((rsize = readln(0, buffer, ReadBufferSize)) >= 0)
+    while (readlncc(0, buffer, ReadBufferSize) >= 0)
     {
         char *comand = strtok(buffer, " ");
         char *objects = strtok(NULL, "\0");
 
         if (comand != NULL)
         {
-            switch (comand[0]) //TODO IMPRIMIR NO STDOUT
+            if (comand[0] == 'a' && strcmp(comand, "ajuda") == 0)
             {
-            case 't':
-                if (strcmp(comand, "terminar") == 0 && objects)
-                {
-                    terminate(atoi(objects));
-                    break;
-                }
-                if (strcmp(comand, "tempo-execucao") == 0 && objects)
-                {
-                    setMaximumRunTime(atoi(objects));
-                    break;
-                }
-                if (strcmp(comand, "tempo-inatividade") == 0 && objects)
-                {
-                    setMaximumRunTime(atoi(objects));
-                    break;
-                }
-                break;
-            case 'e':
-                if (strcmp(comand, "executar") == 0 && objects)
-                    execute(objects);
-                break;
-            case 'l':
-                if (strcmp(comand, "listar") == 0)
-                    listTasks();
-                break;
-            case 'h':
-                if (strcmp(comand, "historico") == 0)
-                    history();
-                break;
-            case 'a':
-                if (strcmp(comand, "ajuda") == 0)
-                {
-                    char *res = help();
-                    write(1, res, strlen(res));
-                }
-                break;
-            case 'o':
-                if (strcmp(comand, "output") == 0 && objects)
-                    output(atoi(objects));
-                break;
-            case 'q':
-                if (strcmp(comand, "quit") == 0)
-                    return 0;
-            default:
-                write(1, "Comando Invalido\n", 18);
-                break;
+                char *res = help();
+                write(1, res, strlen(res));
             }
+            else if (comand[0] == 'e' && strcmp(comand, "executar") == 0 && objects)
+                execute(objects);
+            else if (comand[0] == 'h' && strcmp(comand, "historico") == 0)
+                history();
+            else if (comand[0] == 'l' && strcmp(comand, "listar") == 0)
+                listTasks();
+            else if (comand[0] == 'o' && strcmp(comand, "output") == 0 && objects)
+                 output(atoi(objects));
+            else if (comand[0] == 's' && strcmp(comand, "sair") == 0)
+                break;
+            else if (comand[0] == 't' && strcmp(comand, "terminar") == 0 && objects)
+                terminate(atoi(objects));
+            else if (comand[0] == 't' && strcmp(comand, "tempo-execucao") == 0 && objects)
+                setMaximumRunTime(atoi(objects));
+            else if (comand[0] == 't' && strcmp(comand, "tempo-inatividade") == 0 && objects)
+                setMaximumRunTime(atoi(objects));
+            else
+                write(1, "Parametro Invalida\n", strlen("Parametro Invalida\n"));
         }
         if (displayname)
             write(1, argusTag, strlen(argusTag));
     }
-
+    argusKillAllTasks(0);
     freeArgusStatus(msystem);
-    return rsize;
+    return 0;
 }

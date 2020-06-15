@@ -9,23 +9,23 @@ all:
 argus: argus.c Interface.o constants.o
 	$(CC) $(GFLAGS) argus.c *.o -o argus 
 
-argusd: argusd.c Interface.o constants.o
+argusd: argusd.c Interface.o 
 	$(CC) $(GFLAGS) argusd.c *.o -o argusd
 
-Interface.o: Interface.c Interface.h taskexec.o list.o LogManager.o constants.o
+Interface.o: Interface.c Interface.h taskexec.o list.o LogManager.o 
 	$(CC) $(OFLAGS) Interface.c Interface.h 
 
-taskexec.o: taskexec.c taskexec.h constants.o
+taskexec.o: taskexec.c taskexec.h 
 	$(CC) $(OFLAGS) taskexec.c taskexec.h
 	
 list.o : list.h list.c
 	$(CC) $(OFLAGS) list.c list.h
 	
-LogManager.o: LogManager.c LogManager.h constants.o
+LogManager.o: LogManager.c LogManager.h 
 	$(CC) $(OFLAGS) LogManager.c LogManager.h
 
-constants.o : constants.c constants.h
-	$(CC) $(OFLAGS) constants.c constants.h
+constants.o : constants.c argus.h
+	$(CC) $(OFLAGS) constants.c argus.h
 
 clean:
 	rm *.o argus argusd *.gch ArgusInput ArgusOutput logs logs.idx *.out

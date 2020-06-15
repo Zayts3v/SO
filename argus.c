@@ -5,7 +5,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include "Interface.h"
-#include "constants.h"
+#include "argus.h"
 
 /**
  * @brief Lê, processa e comunica ao servidor um comando, proveniente de uma shell, a ser executado

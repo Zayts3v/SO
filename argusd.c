@@ -5,7 +5,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include "Interface.h"
-#include "constants.h"
+#include "argus.h"
 
 /**
  * @brief Inicia o progama argus num servidor em background
