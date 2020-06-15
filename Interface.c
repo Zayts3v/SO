@@ -127,8 +127,11 @@ void argusKillAllTasks(int signum)
     {
         kill(-getpgid(((TaskInfo)l->data)->pid), SIGKILL);
     }
-    char *done = "\nTodas as tarefas foram terminadas\n";
-    write(1, done, strlen(done));
+    if (signum != 0)
+    {
+        char *done = "\nTodas as tarefas foram terminadas\n";
+        write(1, done, strlen(done));
+    }
 }
 
 /**
@@ -139,7 +142,7 @@ void argusKillAllTasks(int signum)
 void argusINT(int signum)
 {
     argusKillAllTasks(0);
-    kill(-getpgrp(), SIGKILL);
+    _exit(-1);
 }
 
 /**
@@ -294,7 +297,7 @@ void history()
     for (List l = msystem->tasklist; l; l = l->next)
         statusarray[((TaskInfo)l)->index] = 0x1;
 
-    int count=0;
+    int count = 0;
     for (int i = 0; i < msystem->taskcount; i++)
         if (!statusarray[i])
         {
@@ -364,7 +367,7 @@ int argusRTE(int displayname)
     if (displayname)
         write(1, argusTag, strlen(argusTag));
 
-    while (readlncc(0, buffer, ReadBufferSize) >= 0)
+    while (readlncc(0, buffer, ReadBufferSize) > 0)
     {
         char *comand = strtok(buffer, " ");
         char *objects = strtok(NULL, "\0");

@@ -22,8 +22,8 @@ const int magnumANDnullsize[2] = {0x00000C01, 0};
 int readln(int fd, char *buffer, unsigned int nbytes)
 {
     int res = read(fd, buffer, nbytes);
-    if (res == 0)
-        return -1;
+    if (res <= 0)
+        return res;
     for (int i = 0; i < res; i++)
         if (buffer[i] == '\n')
         {
@@ -46,8 +46,9 @@ int readlncc(int fd, char *buffer, unsigned int nbytes)
     int i;
     char c;
     for (i = 0; i < nbytes; i++)
-    {
-        read(fd, &c, 1);
+    {   
+        int res;
+        if((res=read(fd, &c, 1))<=0) return res;
         if (c == '\n')
         {
             buffer[i] = '\0';

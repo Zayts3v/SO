@@ -17,7 +17,7 @@
 int shell(int argc, char **argv)
 {
     //Validar formato da flag
-    if (argc < 1 || argv[0][0] != '-' || argv[0][1] == '\0' || argv[0][2] != '\0')
+    if (argc < 1 || argv[0][0] != '-' || argv[0][1] == '\0' || (argv[0][2] != '\0' && argv[0][1] != '-'))
     {
         write(2, "Comando Invalido\n", 18);
         return -2;
@@ -50,42 +50,58 @@ int shell(int argc, char **argv)
     case 'o':
         argv[0] = "output";
         break;
+    case '-':
+    {
+        if (strcmp(argv[0], "--serverstop") == 0)
+        {
+            execlp("pkill", "pkill", "argusd", NULL);
+            return -1;
+        }
+        if (strcmp(argv[0], "--help") == 0)
+        {
+            char *out = "--help Flag List\n--serverstop Stop argusd Server \n-i Max Idle\n-m Max RunTime\n-e execute\n-l list tasks \n-t kill task\n-r history\n-h argus help\n-o task output\n";
+            write(1, out, strlen(out));
+            return 0;
+        }
+    }
     default:
         write(2, "Comando Invalido\n", 18);
         return -2;
         break;
     }
 
-    int serverin,serverout, cursor=0;
+    int i,serverin, serverout; 
 
-    if ((serverin = open(InputFIFOName, O_WRONLY, 0666)) < 0 || (serverout = open(OutputFIFOName,O_RDONLY,0666)<0))
+    if ((serverin = open(InputFIFOName, O_WRONLY, 0666)) < 0 || (serverout = open(OutputFIFOName, O_RDONLY, 0666) < 0))
     {
         write(2, "Error: Server Offline\n", 23);
         return -1;
     }
+
     //Concatenar argumentos
     char res[MaxLineSize];
     res[0] = '\0';
-    for (int i = 0, cursor = 0; i < argc && cursor > MaxLineSize; i++)
+    for (i = 0; i < argc ; i++)
     {
-        strncat(res, argv[i], MaxLineSize - cursor);
-        cursor += strlen(argv[i]);
-        strncat(res, " ", MaxLineSize - cursor);
-        cursor++;
+        int bruh = MaxLineSize - strlen(res);
+        strncat(res, argv[i], bruh);
+        strncat(res, " ", bruh);
     }
-    strncat(res, "\n", MaxLineSize - cursor);
+    strncat(res, "\n",MaxLineSize - strlen(res));
 
     //Enviar operação para o servidor
 
     write(serverin, res, strlen(res));
-    close(serverin);
 
     //Ler operação do servidor
     char buffer[ReadBufferSize];
-    while ((cursor = read(serverout,buffer,ReadBufferSize))>0){
-        write(1,buffer,cursor);
+    while ((i = read(serverout, buffer, ReadBufferSize)) > 0)
+    {
+        write(1, buffer, i);
     }
     close(serverout);
+    close(serverin);
+
 
     return 0;
 }
@@ -95,6 +111,7 @@ int shell(int argc, char **argv)
  */
 int main(int argc, char *argv[])
 {
-    if (argc == 1) return argusRTE(1);
+    if (argc == 1)
+        return argusRTE(1);
     return shell(argc - 1, argv + 1);
 }
