@@ -1,11 +1,23 @@
 #include "list.h"
 #include <stdlib.h>
 
+/**
+ * @brief Aloca espaço para uma bloco da lista
+ * 
+ * @return res Retorna o bloco criado
+ */
 List List_alloc()
 {
     return calloc(1, sizeof(struct _list));
 }
 
+/**
+ * @brief Adiciona um elemento ao ínicio da lista
+ * 
+ * @param l Lista ligada
+ * @param data Data que irá ser adicionada
+ * @return res Lista
+ */
 List List_prepend(List l, void *data)
 {
     List res = calloc(1, sizeof(struct _list));
@@ -14,6 +26,13 @@ List List_prepend(List l, void *data)
     return res;
 }
 
+/**
+ * @brief Adiciona um elemento ao fim da lista
+ * 
+ * @param l Lista ligada
+ * @param data Data que irá ser adicionada
+ * @return l Lista
+ */
 List List_append(List l, void *data)
 {
 
@@ -27,6 +46,13 @@ List List_append(List l, void *data)
     return l;
 }
 
+
+/**
+ * @brief Determina o tamanho da lista
+ * 
+ * @param l Lista ligada
+ * @return i Tamanho da lista
+ */
 int List_length(List l)
 {
     int i;
@@ -35,6 +61,12 @@ int List_length(List l)
     return i;
 }
 
+/**
+ * @brief Liberta uma lista ligada, através uma função
+ * 
+ * @param l Lista ligada
+ * @param 
+ */
 void List_free(List l, void (*datafreefunc)(void *data))
 {
     while (l)
@@ -47,6 +79,11 @@ void List_free(List l, void (*datafreefunc)(void *data))
     }
 }
 
+/**
+ * @brief Liberta uma lista ligada
+ * 
+ * @param l Lista ligada
+ */
 void List_lfree(List l)
 {
     while (l)
@@ -57,6 +94,12 @@ void List_lfree(List l)
     }
 }
 
+/**
+ * @brief Retira a cabeça a uma lista ligada
+ * 
+ * @param l Lista ligada
+ * @return bruhmium Tail da lista ligada
+ */
 List List_tail(List l)
 {
     if (!l)

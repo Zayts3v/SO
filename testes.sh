@@ -1,4 +1,3 @@
-
 #!bin/bash
 #Ficheiro de testes
 
@@ -9,4 +8,3 @@ make
 ./argus --stopserver
 
 make clean
-
