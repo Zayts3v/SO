@@ -307,7 +307,7 @@ void history()
                 snprintf(S_ITM, 48, "Tinatividade Maximo: %d ", ITM);
             char S_RTM[48] = {0};
             if (RTM > 0)
-                snprintf(S_RTM, 48, "Tinatividade Maximo: %d ", RTM);
+                snprintf(S_RTM, 48, "Texecucao Maximo: %d ", RTM);
             printf("#%d: %s%s%s\n", i + 1, S_RTM, S_ITM, out);
         }
     if (count == 0)

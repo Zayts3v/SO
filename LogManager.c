@@ -167,7 +167,7 @@ int openLogs()
 int updateLogs(int logfile, char *comando, int inatividade, int execucao, int filetocopy)
 {
 
-    lseek(filetocopy, 0, SEEK_SET); //NOTA: Se descriptortocopy for um pipe isto da erro e nao faz nada
+    lseek(filetocopy, 0, SEEK_SET); //NOTA: Se filetocopy for um pipe isto da erro e nao faz nada
 
     int pos = lseek(logfile, 0, SEEK_END); //escreve no fim
     if (pos < 0)
@@ -237,10 +237,9 @@ int writeOutputTo(int logfile, int destination_file, off_t file_index)
  * @return int 0 se correu tudo bem
  */
 
-//originally getOutputInfo
 int getCommandInfo(int logfile, off_t file_index, char output_comand[], int output_comand_size, int *inatividade, int *execucao)
 {
-    if (lseek(logfile, file_index, SEEK_SET) < 0)
+    if (lseek(logfile, file_index + sizeof(int), SEEK_SET) < 0)
         return -1;
 
     int i;
@@ -252,8 +251,6 @@ int getCommandInfo(int logfile, off_t file_index, char output_comand[], int outp
 
     char buffer[MaxLineSize];
     readln(logfile, buffer, MaxLineSize);
-
-
 
     output_comand_size--;
     for (i = 0; buffer[i] && i < output_comand_size; i++)
