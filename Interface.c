@@ -395,7 +395,7 @@ int argusRTE(int displayname)
             else
             {
                 char *out = "Parametro ou comando Invalido\n";
-                write(1, out, strlen("out"));
+                write(1, out, strlen(out));
             }
         }
         if (displayname)

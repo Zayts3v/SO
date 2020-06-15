@@ -28,4 +28,6 @@ constants.o : constants.c argus.h
 	$(CC) $(OFLAGS) constants.c argus.h
 
 clean:
-	rm *.o argus argusd *.gch ArgusInput ArgusOutput logs logs.idx *.out
+	-killall -SIGKILL -g argus
+	-killall -SIGKILL -g argusd
+	-rm *.o argus argusd *.gch ArgusInput ArgusOutput logs logs.idx *.out
