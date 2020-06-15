@@ -350,61 +350,111 @@ char *help()
 }
 
 /**
- * @brief Runt Time Envirement do progama argus
+ * @brief 
  * 
- * @param displayname Indica se pretende-se mostrar a identificação do progama em cada comando
- * @return int 0 se acabou com sucesso, qualquer outro numero se ocorreu um erro
  */
-int argusRTE(int displayname)
+void argusRTE_init()
 {
     signal(SIGCHLD, TaskCleaner);
     signal(SIGQUIT, argusKillAllTasks);
     signal(SIGINT, argusINT);
     msystem = initArgusStatus();
+}
 
-    char buffer[ReadBufferSize];
-
-    if (displayname)
-        write(1, argusTag, strlen(argusTag));
-
-    while (readlncc(0, buffer, ReadBufferSize) > 0)
-    {
-        char *comand = strtok(buffer, " ");
-        char *objects = strtok(NULL, "\0");
-
-        if (comand != NULL)
-        {
-            if (comand[0] == 'a' && strcmp(comand, "ajuda") == 0)
-            {
-                char *res = help();
-                write(1, res, strlen(res));
-            }
-            else if (comand[0] == 'e' && strcmp(comand, "executar") == 0 && objects)
-                execute(objects);
-            else if (comand[0] == 'h' && strcmp(comand, "historico") == 0)
-                history();
-            else if (comand[0] == 'l' && strcmp(comand, "listar") == 0)
-                listTasks();
-            else if (comand[0] == 'o' && strcmp(comand, "output") == 0 && objects)
-                output(atoi(objects));
-            else if (comand[0] == 's' && strcmp(comand, "sair") == 0)
-                break;
-            else if (comand[0] == 't' && strcmp(comand, "terminar") == 0 && objects)
-                terminate(atoi(objects));
-            else if (comand[0] == 't' && strcmp(comand, "tempo-execucao") == 0 && objects)
-                setMaximumRunTime(atoi(objects));
-            else if (comand[0] == 't' && strcmp(comand, "tempo-inatividade") == 0 && objects)
-                setMaximumIdleTime(atoi(objects));
-            else
-            {
-                char *out = "Parametro ou comando Invalido\n";
-                write(1, out, strlen(out));
-            }
-        }
-        if (displayname)
-            write(1, argusTag, strlen(argusTag));
-    }
+void argusRTE_kill()
+{
     argusKillAllTasks(0);
     freeArgusStatus(msystem);
+    _exit(0);
+}
+
+int argusRTE_readcomand(int filetoread, char **comand, char **objects)
+{
+    char buffer[ReadBufferSize];
+    buffer[ReadBufferSize - 1] = 0;
+    int res = readlncc(filetoread, buffer, ReadBufferSize);
+    if (res < 1)
+        return res;
+    *comand = strtok(buffer, " ");
+    if (*comand)
+    {   *comand = strdup(*comand);
+        *objects = strtok(NULL, "\0");
+        if (*objects!=NULL) *objects = strdup(*objects);
+
+    }
+    
+    return res;
+}
+
+void argusRTE_readcomand_free(char *comand, char *objects)
+{
+    if (comand!=NULL)
+        free(comand);
+    if (objects!=NULL)
+        free(objects);
+
+}
+
+/**
+ * @brief Executa um comando
+ * 
+ * @param comand comando ser executado
+ * @param objects objetos do comando (null se nao for aplicavel)
+ * @return int 
+ */
+int argusRTE_run(char *comand, char *objects)
+{  
+    if (comand != NULL)
+    {
+        if (comand[0] == 'a' && strcmp(comand, "ajuda") == 0)
+        {
+            char *res = help();
+            write(1, res, strlen(res));
+        }
+        else if (comand[0] == 'e' && strcmp(comand, "executar") == 0 && objects)
+            return execute(objects);
+        else if (comand[0] == 'h' && strcmp(comand, "historico") == 0)
+            history();
+        else if (comand[0] == 'l' && strcmp(comand, "listar") == 0)
+            listTasks();
+        else if (comand[0] == 'o' && strcmp(comand, "output") == 0 && objects)
+            return output(atoi(objects));
+        else if (comand[0] == 's' && strcmp(comand, "sair") == 0)
+            argusRTE_kill();
+        else if (comand[0] == 't' && strcmp(comand, "terminar") == 0 && objects)
+            return terminate(atoi(objects));
+        else if (comand[0] == 't' && strcmp(comand, "tempo-execucao") == 0 && objects)
+            setMaximumRunTime(atoi(objects));
+        else if (comand[0] == 't' && strcmp(comand, "tempo-inatividade") == 0 && objects)
+            setMaximumIdleTime(atoi(objects));
+        else
+        {
+            char *out = "Parametro ou comando Invalido\n";
+            write(1, out, strlen(out));
+        }
+    }
+    else
+        return -1;
+    return 0;
+}
+
+/**
+ * @brief Runt Time Envirement do progama argus
+ * 
+ * @param displayname Indica se pretende-se mostrar a identificação do progama em cada comando
+ * @return int 0 se acabou com sucesso, qualquer outro numero se ocorreu um erro
+ */
+int argusRTE()
+{
+    argusRTE_init();
+    char *comand, *objects;
+    write(1, argusTag, strlen(argusTag));
+    while (argusRTE_readcomand(0, &comand, &objects) > 0)
+    {
+        argusRTE_run(comand, objects);
+        argusRTE_readcomand_free(comand, objects);
+        write(1, argusTag, strlen(argusTag));
+    }
+    argusRTE_kill();
     return 0;
 }

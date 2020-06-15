@@ -8,6 +8,7 @@
 #include <sys/wait.h>
 #include "Interface.h"
 #include "argus.h"
+#include <stdio.h>
 
 /**
  * @brief Termina o Servidor de uma maneira controlada e limpa
@@ -29,14 +30,15 @@ void terminateServer(int signum)
  */
 int main()
 {
+    fprintf(stderr, "Imma hewe");
     signal(SIGTERM, terminateServer);
     int in, out, st;
 
     int ppRTin[2], ppRTout[2];
-
+    fprintf(stderr, "Imma hewe");
     if (pipe(ppRTin) < 0 || pipe(ppRTout) < 0)
         return -1;
-
+    fprintf(stderr, "Imma hewe");
     if ((st = fork()) == 0)
     {
         close(ppRTin[1]);
@@ -45,23 +47,27 @@ int main()
 
         close(ppRTout[0]);
         dup2(ppRTout[1], 1);
+        dup2(ppRTout[1],2);
         close(ppRTout[1]);
-
-        _exit(argusRTE(0));
+        
+        _exit(0);
     }
+    fprintf(stderr, "Imma hewe");
     close(ppRTin[0]);
     close(ppRTout[1]);
     int RTEinput = ppRTin[1], RTEoutput = ppRTout[0];
 
+
     while (1)
     {
-        if (mkfifo(InputFIFOName, 0666) < 0)
-            break;
-        if (mkfifo(OutputFIFOName, 0666) < 0)
-            break;
+        unlink(InputFIFOName);
+        unlink(OutputFIFOName);
+        mkfifo(InputFIFOName, 0666);
+        mkfifo(OutputFIFOName, 0666);
+        fprintf(stderr, "Imma hewe\n");
         in = open(InputFIFOName, O_RDONLY, 0666);
         out = open(OutputFIFOName, O_WRONLY, 0666);
-
+        fprintf(stderr, "Imma hewe");
         if ((st = fork()) == 0)
         {
             close(RTEoutput);
@@ -69,6 +75,7 @@ int main()
             char *buffer[ReadBufferSize];
             while ((st = read(in, buffer, ReadBufferSize) > 0))
             {
+                fprintf(stderr, "|%s| hewe", buffer);
                 write(RTEinput, buffer, st);
             }
             close(RTEinput);
@@ -84,6 +91,7 @@ int main()
             char *buffer[ReadBufferSize];
             while ((st = read(RTEoutput, buffer, ReadBufferSize) > 0))
             {
+                fprintf(stderr, "|%s| hewe", buffer);
                 write(out, buffer, st);
             }
             close(RTEoutput);
@@ -95,7 +103,7 @@ int main()
             break;
         close(in);
         close(out);
-        printf("Imma hewe");
+        fprintf(stderr, "Imma hewe");
         wait(&st);
         kill(st, SIGKILL);
     }

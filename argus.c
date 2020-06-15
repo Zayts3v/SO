@@ -72,7 +72,9 @@ int shell(int argc, char **argv)
 
     int i,serverin, serverout; 
 
-    if ((serverin = open(InputFIFOName, O_WRONLY, 0666)) < 0 || (serverout = open(OutputFIFOName, O_RDONLY, 0666) < 0))
+    serverin = open(InputFIFOName, O_WRONLY, 0666);
+    serverout = open(OutputFIFOName, O_RDONLY, 0666);
+    if (serverin<0 || serverout<0)
     {
         write(2, "Error: Server Offline\n", 23);
         return -1;
@@ -94,14 +96,14 @@ int shell(int argc, char **argv)
     write(serverin, res, strlen(res));
 
     //Ler operação do servidor
+    
     char buffer[ReadBufferSize];
-    while ((i = read(serverout, buffer, ReadBufferSize)) > 0)
-    {
-        write(1, buffer, i);
-    }
+    //if ((i = read(serverout, buffer, ReadBufferSize)) > 0)
+    //{
+    //    write(1, buffer, i);
+    //}
     close(serverout);
     close(serverin);
-
 
     return 0;
 }
@@ -112,6 +114,6 @@ int shell(int argc, char **argv)
 int main(int argc, char *argv[])
 {
     if (argc == 1)
-        return argusRTE(1);
+        return argusRTE();
     return shell(argc - 1, argv + 1);
 }
